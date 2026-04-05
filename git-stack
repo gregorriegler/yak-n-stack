@@ -1,0 +1,25 @@
+#!/bin/bash
+# git-stack: create a new branch stacked on the current one
+set -e
+
+if [ -z "$1" ]; then
+    echo "Usage: git stack <branch-name>"
+    exit 1
+fi
+
+CURRENT=$(git branch --show-current)
+if [ -z "$CURRENT" ]; then
+    echo "Error: not on a branch."
+    exit 1
+fi
+
+NEW="$1"
+
+if git show-ref --verify --quiet "refs/heads/$NEW"; then
+    echo "Error: branch '$NEW' already exists."
+    exit 1
+fi
+
+git checkout -b "$NEW"
+git config "branch.$NEW.yak-parent" "$CURRENT"
+echo "Stacked '$NEW' on '$CURRENT'"

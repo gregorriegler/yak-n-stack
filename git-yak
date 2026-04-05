@@ -1,0 +1,272 @@
+#!/bin/bash
+# git-yak: insert a yak branch beneath your current work
+
+MAIN_BRANCH=$(git config init.defaultBranch 2>/dev/null || echo "main")
+
+usage() {
+    echo "Usage: git yak <yak-name>   start a yak beneath your current work"
+    echo "       git yak --done       yak is done, return to your work"
+    echo "       git yak --continue   continue after resolving a rebase conflict"
+    echo "       git yak --abort      cancel the yak and restore original state"
+}
+
+ensure_rerere() {
+    if [ "$(git config rerere.enabled 2>/dev/null)" != "true" ]; then
+        git config rerere.enabled true
+        git config rerere.autoupdate true
+        echo "Enabled rerere so repeated conflicts resolve automatically."
+    fi
+}
+
+cascade_from() {
+    local START="$1"
+    local YAK_NAME STACK_STR OLD_TIPS_STR
+    YAK_NAME=$(git config yak.yak-name 2>/dev/null || echo "")
+    STACK_STR=$(git config yak.cascade-stack 2>/dev/null || echo "")
+    OLD_TIPS_STR=$(git config yak.cascade-old-tips 2>/dev/null || echo "")
+
+    if [ -z "$STACK_STR" ]; then
+        return 0
+    fi
+
+    read -ra STACK    <<< "$STACK_STR"
+    read -ra OLD_TIPS <<< "$OLD_TIPS_STR"
+
+    for (( i=START; i<${#STACK[@]}; i++ )); do
+        local BRANCH="${STACK[$i]}"
+        local NEW_BASE OLD_BASE
+
+        if [ "$i" -eq 0 ]; then
+            NEW_BASE="$YAK_NAME"
+            OLD_BASE="origin/$MAIN_BRANCH"
+        else
+            NEW_BASE="${STACK[$((i-1))]}"
+            OLD_BASE="${OLD_TIPS[$((i-1))]}"
+        fi
+
+        git config yak.cascade-index "$i"
+
+        if ! git rebase --onto "$NEW_BASE" "$OLD_BASE" "$BRANCH"; then
+            echo ""
+            echo "Conflict rebasing '$BRANCH' onto '$NEW_BASE'."
+            echo "Resolve the conflicts, then run: git rebase --continue"
+            echo "Then run: git yak --continue"
+            exit 1
+        fi
+    done
+}
+
+if [ "$1" = "--continue" ]; then
+    if [ "$(git config yak.in-progress 2>/dev/null)" != "true" ]; then
+        echo "No yak in progress."
+        exit 1
+    fi
+    ensure_rerere
+    INDEX=$(git config yak.cascade-index 2>/dev/null || echo "0")
+    cascade_from $(( INDEX + 1 ))
+
+    YAK_NAME=$(git config yak.yak-name 2>/dev/null || echo "")
+    RETURN_TO=$(git config yak.return-to 2>/dev/null || echo "")
+    HAS_STASH=$(git config yak.has-stash 2>/dev/null || echo "false")
+
+    if [ -z "$YAK_NAME" ] || [ -z "$RETURN_TO" ]; then
+        echo "Error: yak state is incomplete. Cannot finish cleanly."
+        exit 1
+    fi
+
+    git config --remove-section yak 2>/dev/null || true
+    git config yak.return-to "$RETURN_TO"
+    git config yak.has-stash "$HAS_STASH"
+
+    git checkout "$YAK_NAME"
+    echo ""
+    echo "You're on '$YAK_NAME'. Your stack sits on top of it."
+    echo "Do your yak work here, then run: git yak --done"
+    exit 0
+fi
+
+if [ "$1" = "--abort" ]; then
+    if [ "$(git config yak.in-progress 2>/dev/null)" != "true" ]; then
+        echo "No yak in progress."
+        exit 1
+    fi
+
+    git rebase --abort 2>/dev/null || true
+
+    YAK_NAME=$(git config yak.yak-name 2>/dev/null || echo "")
+    RETURN_TO=$(git config yak.return-to 2>/dev/null || echo "")
+    HAS_STASH=$(git config yak.has-stash 2>/dev/null || echo "false")
+    INDEX=$(git config yak.cascade-index 2>/dev/null || echo "0")
+    STACK_STR=$(git config yak.cascade-stack 2>/dev/null || echo "")
+    OLD_TIPS_STR=$(git config yak.cascade-old-tips 2>/dev/null || echo "")
+    REMOTE_TIPS_STR=$(git config yak.cascade-remote-tips 2>/dev/null || echo "")
+    ORIGINAL_BOTTOM_PARENT=$(git config yak.bottom-original-parent 2>/dev/null || echo "")
+
+    read -ra STACK       <<< "$STACK_STR"
+    read -ra OLD_TIPS    <<< "$OLD_TIPS_STR"
+    read -ra REMOTE_TIPS <<< "$REMOTE_TIPS_STR"
+
+    # reset branches that were already successfully rebased
+    for (( i=0; i<INDEX; i++ )); do
+        BRANCH="${STACK[$i]}"
+        OLD_TIP="${OLD_TIPS[$i]}"
+        REMOTE_TIP="${REMOTE_TIPS[$i]}"
+        git checkout "$BRANCH"
+        git reset --hard "$OLD_TIP"
+        echo "Reset '$BRANCH' to its original state."
+        if [ -n "$REMOTE_TIP" ]; then
+            if ! git push --force-with-lease="$BRANCH:$REMOTE_TIP" origin "$BRANCH"; then
+                echo "Warning: could not restore remote '$BRANCH'. Someone may have pushed to it."
+                echo "Check the branch manually before force pushing."
+            fi
+        fi
+    done
+
+    git config --remove-section yak 2>/dev/null || true
+
+    # restore STACK[0]'s original parent
+    if [ "${#STACK[@]}" -gt 0 ] && [ -n "$ORIGINAL_BOTTOM_PARENT" ]; then
+        git config "branch.${STACK[0]}.yak-parent" "$ORIGINAL_BOTTOM_PARENT"
+    fi
+
+    if [ -n "$RETURN_TO" ]; then
+        git checkout "$RETURN_TO"
+    fi
+
+    if [ -n "$YAK_NAME" ] && git show-ref --verify --quiet "refs/heads/$YAK_NAME"; then
+        git branch -D "$YAK_NAME"
+        echo "Deleted yak branch '$YAK_NAME'."
+    fi
+
+    if [ "$HAS_STASH" = "true" ]; then
+        git stash pop
+    fi
+
+    echo "Yak aborted. Back on '$RETURN_TO'."
+    exit 0
+fi
+
+if [ "$1" = "--done" ]; then
+    RETURN_TO=$(git config yak.return-to 2>/dev/null || echo "")
+    if [ -z "$RETURN_TO" ]; then
+        echo "No return point saved. Are you in a yak?"
+        exit 1
+    fi
+    HAS_STASH=$(git config yak.has-stash 2>/dev/null || echo "false")
+    git checkout "$RETURN_TO"
+    if [ "$HAS_STASH" = "true" ]; then
+        git stash pop
+    fi
+    git config --unset yak.return-to 2>/dev/null || true
+    git config --unset yak.has-stash 2>/dev/null || true
+    echo "Back on '$RETURN_TO'."
+    exit 0
+fi
+
+if [ -z "$1" ]; then
+    usage
+    exit 1
+fi
+
+if [ "$(git config yak.in-progress 2>/dev/null)" = "true" ]; then
+    echo "A yak is already in progress. Run 'git yak --continue' or 'git yak --abort'."
+    exit 1
+fi
+
+YAK_NAME="$1"
+ensure_rerere
+
+if git show-ref --verify --quiet "refs/heads/$YAK_NAME"; then
+    echo "Error: branch '$YAK_NAME' already exists."
+    exit 1
+fi
+
+CURRENT=$(git branch --show-current)
+if [ -z "$CURRENT" ]; then
+    echo "Error: detached HEAD. Check out a branch first."
+    exit 1
+fi
+
+STASHED=false
+if ! git diff --quiet || ! git diff --cached --quiet; then
+    git stash
+    STASHED=true
+fi
+
+RETURN_TO="$CURRENT"
+STACK=()
+
+git fetch origin
+
+if [ "$CURRENT" = "$MAIN_BRANCH" ]; then
+    COMMITS=$(git log --oneline "origin/$MAIN_BRANCH..HEAD" 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$COMMITS" -gt 0 ]; then
+        echo "You have $COMMITS commit(s) on $MAIN_BRANCH. Name for your work branch:"
+        read -r WORK_BRANCH
+        if git show-ref --verify --quiet "refs/heads/$WORK_BRANCH"; then
+            echo "Error: branch '$WORK_BRANCH' already exists."
+            if [ "$STASHED" = "true" ]; then
+                git stash pop
+            fi
+            exit 1
+        fi
+        git checkout -b "$WORK_BRANCH"
+        git config "branch.$WORK_BRANCH.yak-parent" "origin/$MAIN_BRANCH"
+        CURRENT="$WORK_BRANCH"
+        RETURN_TO="$WORK_BRANCH"
+        STACK=("$WORK_BRANCH")
+    fi
+else
+    TOP_DOWN=()
+    B="$CURRENT"
+    while true; do
+        TOP_DOWN+=("$B")
+        PARENT=$(git config "branch.$B.yak-parent" 2>/dev/null || echo "")
+        if [ -z "$PARENT" ] || [ "$PARENT" = "origin/$MAIN_BRANCH" ] || [ "$PARENT" = "$MAIN_BRANCH" ]; then
+            break
+        fi
+        B="$PARENT"
+    done
+    for (( i=${#TOP_DOWN[@]}-1; i>=0; i-- )); do
+        STACK+=("${TOP_DOWN[$i]}")
+    done
+fi
+
+OLD_TIPS=()
+REMOTE_TIPS=()
+for B in "${STACK[@]}"; do
+    OLD_TIPS+=("$(git rev-parse "$B")")
+    REMOTE_TIPS+=("$(git rev-parse "origin/$B" 2>/dev/null || echo "")")
+done
+
+git checkout -b "$YAK_NAME" "origin/$MAIN_BRANCH"
+git config "branch.$YAK_NAME.yak-parent" "origin/$MAIN_BRANCH"
+
+if [ "${#STACK[@]}" -gt 0 ]; then
+    ORIGINAL_BOTTOM_PARENT=$(git config "branch.${STACK[0]}.yak-parent" 2>/dev/null || echo "origin/$MAIN_BRANCH")
+    git config "branch.${STACK[0]}.yak-parent" "$YAK_NAME"
+fi
+
+git config yak.in-progress           true
+git config yak.return-to             "$RETURN_TO"
+git config yak.has-stash             "$STASHED"
+git config yak.yak-name              "$YAK_NAME"
+git config yak.cascade-stack         "${STACK[*]}"
+git config yak.cascade-old-tips      "${OLD_TIPS[*]}"
+git config yak.cascade-remote-tips   "${REMOTE_TIPS[*]}"
+git config yak.cascade-index         "0"
+git config yak.bottom-original-parent "${ORIGINAL_BOTTOM_PARENT:-}"
+
+cascade_from 0
+
+# completed without conflict, trim state down to just what --done needs
+RETURN_TO_SAVE="$RETURN_TO"
+STASHED_SAVE="$STASHED"
+git config --remove-section yak 2>/dev/null || true
+git config yak.return-to "$RETURN_TO_SAVE"
+git config yak.has-stash "$STASHED_SAVE"
+
+git checkout "$YAK_NAME"
+echo ""
+echo "You're on '$YAK_NAME'. Your stack sits on top of it."
+echo "Do your yak work here, then run: git yak --done"
