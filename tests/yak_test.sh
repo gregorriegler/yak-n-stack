@@ -7,14 +7,17 @@ set_up() {
     REMOTE_DIR="$TEST_DIR/remote.git"
     WORK_DIR="$TEST_DIR/work"
 
+    export GIT_AUTHOR_NAME="Test"
+    export GIT_COMMITTER_NAME="Test"
+    export GIT_AUTHOR_EMAIL="test@test.com"
+    export GIT_COMMITTER_EMAIL="test@test.com"
+    export PATH="$SCRIPT_DIR:$PATH"
+
     git init --bare "$REMOTE_DIR" >/dev/null 2>&1
     git clone "$REMOTE_DIR" "$WORK_DIR" >/dev/null 2>&1
 
     cd "$WORK_DIR"
-    git config user.email "test@test.com"
-    git config user.name "Test"
     git config init.defaultBranch main
-    export PATH="$SCRIPT_DIR:$PATH"
 
     echo "init" > file.txt
     git add file.txt
