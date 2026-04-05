@@ -153,3 +153,57 @@ function test_sync_conflict_then_abort() {
 
     assert_same "$old_tip" "$(git rev-parse part-2)"
 }
+
+# ── no-arg sync with conflict ──────────────────────────────
+
+function test_sync_no_arg_conflict_then_continue() {
+    make_branch part-1
+    git stack part-2
+    echo "part-2" > shared.txt
+    git add shared.txt && git commit -m "edit shared" >/dev/null 2>&1
+    git stack part-3
+    commit part-3
+
+    # push a conflicting commit to main
+    conflict_on_main shared.txt "main"
+
+    git checkout part-3 >/dev/null 2>&1
+    git sync || true
+
+    resolve shared.txt "resolved"
+    git rebase --continue >/dev/null 2>&1
+    git sync --continue
+
+    # part-2 has the resolution, part-3 is rebased on top, back on part-3
+    assert_same "part-3" "$(git branch --show-current)"
+    assert_same "resolved" "$(git show part-2:shared.txt)"
+    assert_same "$(tree)" \
+$'main
+ └─ part-1 [1]
+     └─ part-2 [1]
+         └─ part-3 [1] ←'
+}
+
+function test_sync_no_arg_conflict_then_abort() {
+    make_branch part-1
+    git stack part-2
+    echo "part-2" > shared.txt
+    git add shared.txt && git commit -m "edit shared" >/dev/null 2>&1
+    git stack part-3
+    commit part-3
+
+    local old_part1_tip old_part2_tip old_part3_tip
+    old_part1_tip=$(git rev-parse part-1)
+    old_part2_tip=$(git rev-parse part-2)
+    old_part3_tip=$(git rev-parse part-3)
+
+    conflict_on_main shared.txt "main"
+
+    git checkout part-3 >/dev/null 2>&1
+    git sync || true
+    git sync --abort
+
+    assert_same "$old_part1_tip" "$(git rev-parse part-1)"
+    assert_same "$old_part2_tip" "$(git rev-parse part-2)"
+    assert_same "$old_part3_tip" "$(git rev-parse part-3)"
+}

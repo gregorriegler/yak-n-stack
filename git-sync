@@ -72,10 +72,12 @@ if [ "$1" = "--continue" ]; then
     INDEX=$(git config sync.cascade-index 2>/dev/null || echo "0")
     cascade_from $(( INDEX + 1 ))
 
-    # cascade done, push and clean up
+    # cascade done — clean up
+    MODE=$(git config sync.mode 2>/dev/null || echo "arg")
     STACK_STR=$(git config sync.cascade-stack 2>/dev/null || echo "")
     REMOTE_TIPS_STR=$(git config sync.cascade-remote-tips 2>/dev/null || echo "")
     MERGED=$(git config sync.merged-branch 2>/dev/null || echo "")
+    RETURN_BRANCH=$(git config sync.return-branch 2>/dev/null || echo "")
     read -ra STACK       <<< "$STACK_STR"
     read -ra REMOTE_TIPS <<< "$REMOTE_TIPS_STR"
 
@@ -84,24 +86,35 @@ if [ "$1" = "--continue" ]; then
         git config "branch.${STACK[0]}.yak-parent" "origin/$MAIN_BRANCH"
     fi
 
-    for (( i=0; i<${#STACK[@]}; i++ )); do
-        BRANCH="${STACK[$i]}"
-        REMOTE_TIP="${REMOTE_TIPS[$i]}"
-        if [ -n "$REMOTE_TIP" ]; then
-            git push --force-with-lease="$BRANCH:$REMOTE_TIP" origin "$BRANCH" \
-                || echo "Note: could not push '$BRANCH'."
-        else
-            git push origin "$BRANCH" \
-                || echo "Note: could not push '$BRANCH' (not pushed yet?)"
+    if [ "$MODE" = "no-arg" ]; then
+        # no-arg sync: update parents, return to original branch
+        for (( i=1; i<${#STACK[@]}; i++ )); do
+            git config "branch.${STACK[$i]}.yak-parent" "${STACK[$((i-1))]}"
+        done
+        git config --remove-section sync 2>/dev/null || true
+        if [ -n "$RETURN_BRANCH" ]; then
+            git checkout "$RETURN_BRANCH" >/dev/null 2>&1
         fi
-    done
-
-    git config --remove-section sync 2>/dev/null || true
-    git config --remove-section "branch.$MERGED" 2>/dev/null || true
-    git branch -D "$MERGED" 2>/dev/null || echo "Note: could not delete local '$MERGED'."
-
-    echo ""
-    echo "Done. '$MERGED' removed, stack rebased onto origin/$MAIN_BRANCH."
+        echo "Stack synced."
+    else
+        # arg sync: push, delete merged branch
+        for (( i=0; i<${#STACK[@]}; i++ )); do
+            BRANCH="${STACK[$i]}"
+            REMOTE_TIP="${REMOTE_TIPS[$i]}"
+            if [ -n "$REMOTE_TIP" ]; then
+                git push --force-with-lease="$BRANCH:$REMOTE_TIP" origin "$BRANCH" \
+                    || echo "Note: could not push '$BRANCH'."
+            else
+                git push origin "$BRANCH" \
+                    || echo "Note: could not push '$BRANCH' (not pushed yet?)"
+            fi
+        done
+        git config --remove-section sync 2>/dev/null || true
+        git config --remove-section "branch.$MERGED" 2>/dev/null || true
+        git branch -D "$MERGED" 2>/dev/null || echo "Note: could not delete local '$MERGED'."
+        echo ""
+        echo "Done. '$MERGED' removed, stack rebased onto origin/$MAIN_BRANCH."
+    fi
     exit 0
 fi
 
@@ -144,8 +157,85 @@ if [ "$1" = "--abort" ]; then
 fi
 
 if [ -z "$1" ]; then
-    usage
-    exit 1
+    # no-arg sync: find current branch's stack root and rebase everything
+    ensure_rerere
+    git fetch origin
+
+    # find the root of the stack (walk parents to origin/main)
+    CURRENT=$(git branch --show-current)
+    ROOT="$CURRENT"
+    while true; do
+        PARENT=$(git config "branch.$ROOT.yak-parent" 2>/dev/null || echo "")
+        if [ -z "$PARENT" ] || [ "$PARENT" = "origin/$MAIN_BRANCH" ]; then
+            break
+        fi
+        ROOT="$PARENT"
+    done
+
+    # check if a branch was squash-merged into main
+    is_squash_merged() {
+        local branch="$1"
+        local unmerged
+        unmerged=$(git cherry "origin/$MAIN_BRANCH" "$branch" 2>/dev/null | grep -c '^+' || true)
+        [ "$unmerged" -eq 0 ]
+    }
+
+    # collect stack from root upward
+    STACK=("$ROOT")
+    B="$ROOT"
+    while true; do
+        NEXT=$(find_child "$B")
+        if [ -z "$NEXT" ]; then break; fi
+        STACK+=("$NEXT")
+        B="$NEXT"
+    done
+
+    # remove squash-merged branches from the bottom of the stack
+    while [ "${#STACK[@]}" -gt 0 ] && is_squash_merged "${STACK[0]}"; do
+        MERGED_BRANCH="${STACK[0]}"
+        STACK=("${STACK[@]:1}")
+        # reparent the next branch if it exists
+        if [ "${#STACK[@]}" -gt 0 ]; then
+            git config "branch.${STACK[0]}.yak-parent" "origin/$MAIN_BRANCH"
+        fi
+        git config --remove-section "branch.$MERGED_BRANCH" 2>/dev/null || true
+        git branch -D "$MERGED_BRANCH" 2>/dev/null || true
+    done
+
+    # save old tips for abort, and record old parent of root for rebase base
+    OLD_TIPS=()
+    for B in "${STACK[@]}"; do
+        OLD_TIPS+=("$(git rev-parse "$B")")
+    done
+
+    # the "merged-branch" for cascade_from is the old base of the first branch
+    FIRST_PARENT=$(git config "branch.${STACK[0]}.yak-parent" 2>/dev/null || echo "origin/$MAIN_BRANCH")
+
+    git config sync.in-progress       true
+    git config sync.mode              "no-arg"
+    git config sync.merged-branch     "$FIRST_PARENT"
+    git config sync.cascade-stack     "${STACK[*]}"
+    git config sync.cascade-old-tips  "${OLD_TIPS[*]}"
+    git config sync.cascade-remote-tips ""
+    git config sync.cascade-index     "0"
+    git config sync.return-branch     "$CURRENT"
+
+    # rebase remaining branches using cascade_from
+    cascade_from 0
+
+    # completed without conflict — clean up and return
+    for (( i=0; i<${#STACK[@]}; i++ )); do
+        BRANCH="${STACK[$i]}"
+        if [ "$i" -eq 0 ]; then
+            git config "branch.$BRANCH.yak-parent" "origin/$MAIN_BRANCH"
+        else
+            git config "branch.$BRANCH.yak-parent" "${STACK[$((i-1))]}"
+        fi
+    done
+
+    git config --remove-section sync 2>/dev/null || true
+    git checkout "$CURRENT" >/dev/null 2>&1
+    exit 0
 fi
 
 if [ "$(git config sync.in-progress 2>/dev/null)" = "true" ]; then

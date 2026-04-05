@@ -56,6 +56,18 @@ squash_merge() {
     rm -rf "$helper"
 }
 
+# push a new commit to origin/main via a helper clone
+push_to_main() {
+    local file="$1" content="$2"
+    local helper="$TEST_DIR/helper"
+    git clone "$REMOTE_DIR" "$helper" >/dev/null 2>&1
+    echo "$content" > "$helper/$file"
+    git -C "$helper" add "$file"
+    git -C "$helper" commit -m "main adds $file" >/dev/null 2>&1
+    git -C "$helper" push origin main >/dev/null 2>&1
+    rm -rf "$helper"
+}
+
 # ── git sync: basic squash-merge ────────────────────────────
 
 function test_sync_rebases_stack_after_squash_merge() {
@@ -124,6 +136,132 @@ function test_sync_with_no_stack_above() {
 
     # no child branches, just cleans up
     assert_matches "No branch found" "$output"
+}
+
+# ── git sync (no-arg): cascade rebase ──────────────────────
+
+function test_sync_no_arg_rebases_branch_onto_updated_main() {
+    make_branch feature-1
+
+    push_to_main new.txt "new"
+
+    git sync
+
+    # feature-1 should be rebased onto the updated main
+    assert_same "$(tree)" \
+$'main
+ └─ feature-1 [1] ←'
+    # and the new file from main should be accessible
+    assert_same "new" "$(cat new.txt)"
+}
+
+function test_sync_no_arg_cascade_rebases_entire_stack() {
+    make_branch part-1
+    git stack part-2
+    commit part-2
+    git stack part-3
+    commit part-3
+
+    # go back to part-1 and add a commit
+    git checkout part-1 >/dev/null 2>&1
+    commit part-1-fix
+
+    git sync
+
+    # all three branches should still be stacked, part-1 has 2 commits now
+    assert_same "$(tree)" \
+$'main
+ └─ part-1 [2] ←
+     └─ part-2 [1]
+         └─ part-3 [1]'
+    # part-3 should contain the new file from part-1
+    assert_same "part-1-fix" "$(git show part-3:part-1-fix)"
+}
+
+function test_sync_no_arg_auto_detects_squash_merged_branch() {
+    make_branch part-1
+    git push origin part-1 >/dev/null 2>&1
+    git stack part-2
+    commit part-2
+    git stack part-3
+    commit part-3
+
+    squash_merge part-1
+
+    git checkout part-3 >/dev/null 2>&1
+    git sync
+
+    # part-1 should be gone, part-2 and part-3 rebased onto main
+    assert_same "$(tree)" \
+$'main
+ └─ part-2 [1]
+     └─ part-3 [1] ←'
+    assert_empty "$(git branch --list part-1)"
+}
+
+function test_sync_no_arg_detects_multiple_squash_merged_branches() {
+    make_branch part-1
+    git push origin part-1 >/dev/null 2>&1
+    git stack part-2
+    commit part-2
+    git push origin part-2 >/dev/null 2>&1
+    git stack part-3
+    commit part-3
+
+    squash_merge part-1
+    squash_merge part-2
+
+    git checkout part-3 >/dev/null 2>&1
+    git sync
+
+    # both part-1 and part-2 should be gone
+    assert_same "$(tree)" \
+$'main
+ └─ part-3 [1] ←'
+    assert_empty "$(git branch --list part-1)"
+    assert_empty "$(git branch --list part-2)"
+}
+
+function test_sync_no_arg_edit_middle_only_rebases_above() {
+    make_branch part-1
+    git stack part-2
+    commit part-2
+    git stack part-3
+    commit part-3
+
+    local part1_tip
+    part1_tip=$(git rev-parse part-1)
+
+    # go back to part-2 and add a commit
+    git checkout part-2 >/dev/null 2>&1
+    commit part-2-fix
+
+    git sync
+
+    assert_same "$(tree)" \
+$'main
+ └─ part-1 [1]
+     └─ part-2 [2] ←
+         └─ part-3 [1]'
+    # part-1 should be untouched
+    assert_same "$part1_tip" "$(git rev-parse part-1)"
+}
+
+function test_sync_no_arg_cascade_with_yak_branch() {
+    make_branch feature-1
+    git yak the-yak
+    commit yak-work
+
+    push_to_main new.txt "new"
+
+    git sync
+
+    # the-yak and feature-1 should both be rebased onto updated main
+    assert_same "$(tree)" \
+$'main
+ └─ the-yak [1] ←
+     └─ feature-1 [1]'
+    assert_same "new" "$(cat new.txt)"
 }
 
 # ── sync after yak merges ───────────────────────────────────
