@@ -1,0 +1,71 @@
+#!/bin/bash
+# git-yak-tree: print a visual representation of the current branch stack
+
+MAIN_BRANCH=$(git config init.defaultBranch 2>/dev/null || echo "main")
+CURRENT=$(git branch --show-current 2>/dev/null || echo "")
+
+find_child() {
+    local target="$1"
+    while read -r key value; do
+        local branch="${key#branch.}"
+        branch="${branch%.yak-parent}"
+        if [ "$value" = "$target" ]; then
+            echo "$branch"
+            return
+        fi
+    done < <(git config --get-regexp '^branch\..*\.yak-parent$' 2>/dev/null)
+}
+
+# walk down from current branch to find the bottom of the stack
+BOTTOM=""
+if [ -n "$CURRENT" ] && [ "$CURRENT" != "$MAIN_BRANCH" ]; then
+    B="$CURRENT"
+    while true; do
+        BOTTOM="$B"
+        PARENT=$(git config "branch.$B.yak-parent" 2>/dev/null || echo "")
+        if [ -z "$PARENT" ] || [ "$PARENT" = "origin/$MAIN_BRANCH" ] || [ "$PARENT" = "$MAIN_BRANCH" ]; then
+            break
+        fi
+        B="$PARENT"
+    done
+else
+    BOTTOM=$(find_child "origin/$MAIN_BRANCH")
+    if [ -z "$BOTTOM" ]; then
+        BOTTOM=$(find_child "$MAIN_BRANCH")
+    fi
+fi
+
+# walk up from bottom collecting the full stack
+STACK=()
+if [ -n "$BOTTOM" ]; then
+    B="$BOTTOM"
+    while [ -n "$B" ]; do
+        STACK+=("$B")
+        B=$(find_child "$B")
+    done
+fi
+
+# print the tree
+MAIN_LINE="$MAIN_BRANCH"
+if [ "$CURRENT" = "$MAIN_BRANCH" ]; then
+    MAIN_LINE="$MAIN_LINE ←"
+fi
+echo "$MAIN_LINE"
+INDENT=" "
+for (( i=0; i<${#STACK[@]}; i++ )); do
+    BRANCH="${STACK[$i]}"
+    PARENT=$(git config "branch.$BRANCH.yak-parent" 2>/dev/null || echo "origin/$MAIN_BRANCH")
+
+    # count commits between parent and branch
+    COMMITS=$(git log --oneline "$PARENT..$BRANCH" 2>/dev/null | wc -l | tr -d ' ')
+
+    LINE="${INDENT}└─ ${BRANCH}"
+    if [ "$COMMITS" -gt 0 ]; then
+        LINE="$LINE [$COMMITS]"
+    fi
+    if [ "$BRANCH" = "$CURRENT" ]; then
+        LINE="$LINE ←"
+    fi
+    echo "$LINE"
+    INDENT="$INDENT    "
+done

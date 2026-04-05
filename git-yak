@@ -201,15 +201,12 @@ git fetch origin
 if [ "$CURRENT" = "$MAIN_BRANCH" ]; then
     COMMITS=$(git log --oneline "origin/$MAIN_BRANCH..HEAD" 2>/dev/null | wc -l | tr -d ' ')
     if [ "$COMMITS" -gt 0 ]; then
-        echo "You have $COMMITS commit(s) on $MAIN_BRANCH. Name for your work branch:"
-        read -r WORK_BRANCH
-        if git show-ref --verify --quiet "refs/heads/$WORK_BRANCH"; then
-            echo "Error: branch '$WORK_BRANCH' already exists."
-            if [ "$STASHED" = "true" ]; then
-                git stash pop
-            fi
-            exit 1
-        fi
+        # auto-generate work branch name: work-1, work-2, ...
+        WORK_N=1
+        while git show-ref --verify --quiet "refs/heads/work-$WORK_N"; do
+            WORK_N=$((WORK_N + 1))
+        done
+        WORK_BRANCH="work-$WORK_N"
         git checkout -b "$WORK_BRANCH"
         git config "branch.$WORK_BRANCH.yak-parent" "origin/$MAIN_BRANCH"
         CURRENT="$WORK_BRANCH"
