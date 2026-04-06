@@ -249,6 +249,16 @@ main
 
 The `[N]` is the commit count. The `←` marks the current branch.
 
+## Tests
+
+The [tests](tests/) cover every use case above in detail, including edge
+cases like nested yaks, conflict resolution, and squash-merge detection.
+Read them if you want to understand exactly what each command does.
+
+```bash
+./test.sh
+```
+
 ## Notes
 
 - The scripts assume your remote is named `origin`.
