@@ -73,7 +73,7 @@ gh_calls() {
 
 # ── PR creation ────────────────────────────────────────────
 
-function test_stack_pr_creates_pr_for_bottom_branch() {
+function test_stack_pr_pushes_and_creates_pr_targeting_main() {
     make_branch feature-1
 
     local output
@@ -81,16 +81,9 @@ function test_stack_pr_creates_pr_for_bottom_branch() {
 
     assert_matches "https://github.com" "$output"
     assert_matches "pr create" "$(gh_calls)"
-}
-
-function test_stack_pr_pushes_branch_before_creating_pr() {
-    make_branch feature-1
-
-    git stack-pr "Add feature 1" >/dev/null 2>&1
-
-    local remote_ref
-    remote_ref=$(git ls-remote origin feature-1 2>/dev/null | head -1)
-    assert_not_empty "$remote_ref"
+    assert_matches "feature-1" "$(gh_calls)"
+    assert_matches "main" "$(gh_calls)"
+    assert_not_empty "$(git ls-remote origin feature-1 2>/dev/null)"
 }
 
 function test_stack_pr_from_higher_branch_creates_pr_for_bottom() {
@@ -100,25 +93,13 @@ function test_stack_pr_from_higher_branch_creates_pr_for_bottom() {
     git stack part-3
     commit part-3
 
-    # on part-3, but PR should be for part-1
     local output
     output=$(git stack-pr "Add part 1")
 
     assert_matches "https://github.com" "$output"
-    # part-1 should be pushed
-    local remote_ref
-    remote_ref=$(git ls-remote origin part-1 2>/dev/null | head -1)
-    assert_not_empty "$remote_ref"
-}
-
-function test_stack_pr_from_higher_branch_stays_on_current_branch() {
-    make_branch part-1
-    git stack part-2
-    commit part-2
-
-    git stack-pr "Add part 1" >/dev/null 2>&1
-
-    assert_same "part-2" "$(git branch --show-current)"
+    assert_matches "part-1" "$(gh_calls)"
+    assert_not_empty "$(git ls-remote origin part-1 2>/dev/null)"
+    assert_same "part-3" "$(git branch --show-current)"
 }
 
 function test_stack_pr_errors_on_main() {
@@ -151,4 +132,5 @@ function test_stack_pr_works_after_sync_promotes_branch_to_bottom() {
     output=$(git stack-pr "Add part 2")
 
     assert_matches "https://github.com" "$output"
+    assert_matches "part-2" "$(gh_calls)"
 }
