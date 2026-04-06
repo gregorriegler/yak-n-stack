@@ -138,6 +138,18 @@ function test_sync_with_no_stack_above() {
     assert_matches "No branch found" "$output"
 }
 
+# ── git sync (no-arg): edge cases ──────────────────────────
+
+function test_sync_no_arg_on_main_exits_gracefully() {
+    # stay on main, no stack
+    local output
+    output=$(git sync 2>&1)
+    local status=$?
+
+    assert_same 0 "$status"
+    assert_matches "Nothing to sync" "$output"
+}
+
 # ── git sync (no-arg): cascade rebase ──────────────────────
 
 function test_sync_no_arg_rebases_branch_onto_updated_main() {
@@ -262,6 +274,23 @@ $'main
  └─ the-yak [1] ←
      └─ feature-1 [1]'
     assert_same "new" "$(cat new.txt)"
+}
+
+# ── git sync (no-arg): uncommitted changes ─────────────────
+
+function test_sync_no_arg_preserves_uncommitted_changes() {
+    make_branch feature-1
+
+    push_to_main new.txt "new"
+
+    echo "dirty" > dirty.txt
+
+    git sync
+
+    assert_same "$(tree)" \
+$'main
+ └─ feature-1 [1] ←'
+    assert_same "dirty" "$(cat dirty.txt)"
 }
 
 # ── sync after yak merges ───────────────────────────────────

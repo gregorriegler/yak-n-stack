@@ -158,11 +158,23 @@ fi
 
 if [ -z "$1" ]; then
     # no-arg sync: find current branch's stack root and rebase everything
+    CURRENT=$(git branch --show-current)
+
+    # check if we're on a branch that's part of a stack
+    if [ -z "$CURRENT" ] || [ "$CURRENT" = "$MAIN_BRANCH" ]; then
+        # not on a stack branch — check if any stack exists
+        CHILD=$(find_child "origin/$MAIN_BRANCH")
+        if [ -z "$CHILD" ]; then
+            CHILD=$(find_child "$MAIN_BRANCH")
+        fi
+        if [ -z "$CHILD" ]; then
+            echo "Nothing to sync — no stacked branches found."
+            exit 0
+        fi
+    fi
+
     ensure_rerere
     git fetch origin
-
-    # find the root of the stack (walk parents to origin/main)
-    CURRENT=$(git branch --show-current)
     ROOT="$CURRENT"
     while true; do
         PARENT=$(git config "branch.$ROOT.yak-parent" 2>/dev/null || echo "")
