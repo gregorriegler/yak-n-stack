@@ -23,3 +23,5 @@ fi
 git checkout -b "$NEW"
 git config "branch.$NEW.stack-parent" "$CURRENT"
 echo "Stacked '$NEW' on '$CURRENT'"
+echo ""
+git stack-tree

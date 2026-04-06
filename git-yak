@@ -160,6 +160,8 @@ if [ "$1" = "--done" ]; then
     git config --unset yak.return-to 2>/dev/null || true
     git config --unset yak.has-stash 2>/dev/null || true
     echo "Back on '$RETURN_TO'."
+    echo ""
+    git stack-tree
     exit 0
 fi
 
@@ -267,3 +269,5 @@ git checkout "$YAK_NAME"
 echo ""
 echo "You're on '$YAK_NAME'. Your stack sits on top of it."
 echo "Do your yak work here, then run: git yak --done"
+echo ""
+git stack-tree

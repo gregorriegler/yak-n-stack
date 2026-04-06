@@ -96,6 +96,8 @@ if [ "$1" = "--continue" ]; then
             git checkout "$RETURN_BRANCH" >/dev/null 2>&1
         fi
         echo "Stack synced."
+        echo ""
+        git stack-tree
     else
         # arg sync: push, delete merged branch
         for (( i=0; i<${#STACK[@]}; i++ )); do
@@ -114,6 +116,8 @@ if [ "$1" = "--continue" ]; then
         git branch -D "$MERGED" 2>/dev/null || echo "Note: could not delete local '$MERGED'."
         echo ""
         echo "Done. '$MERGED' removed, stack rebased onto origin/$MAIN_BRANCH."
+        echo ""
+        git stack-tree
     fi
     exit 0
 fi
@@ -247,6 +251,9 @@ if [ -z "$1" ]; then
 
     git config --remove-section sync 2>/dev/null || true
     git checkout "$CURRENT" >/dev/null 2>&1
+    echo "Stack synced."
+    echo ""
+    git stack-tree
     exit 0
 fi
 
@@ -320,3 +327,5 @@ git branch -D "$MERGED" 2>/dev/null || echo "Note: could not delete local '$MERG
 
 echo ""
 echo "Done. '$MERGED' removed, stack rebased onto origin/$MAIN_BRANCH."
+echo ""
+git stack-tree
