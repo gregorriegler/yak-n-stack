@@ -11,7 +11,9 @@ git sync             rebase the stack, cleaning up merged branches
 ## Install
 
 ```bash
-cp git-yak git-stack git-sync git-yak-tree /usr/local/bin/
+./install.sh            # symlinks into ~/.local/bin (default)
+./install.sh --copy     # copies instead of symlinking
+./install.sh --uninstall
 ```
 
 ## Why
