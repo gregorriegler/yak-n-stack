@@ -7,6 +7,7 @@ git stack <name>      stack a new branch on top of the current one
 git yak <name>        insert a branch beneath your current work
 git sync              rebase the stack, cleaning up merged branches
 git stack-pr <title>  push and create a PR for the bottom branch
+git stack-tree        print the branch stack
 ```
 
 ## Install
@@ -42,84 +43,9 @@ git stack part-3
 
 ```
 main
- └─ part-1          ← ready for review
+ └─ part-1
      └─ part-2
          └─ part-3  ← you are here
-```
-
----
-
-### Stack-pr: open a PR for the bottom branch
-
-When you're ready to send the bottom branch for review:
-
-```bash
-git checkout part-1
-git stack-pr "Add feature part 1"
-```
-
-This pushes the branch and creates a PR targeting main. Only the bottom
-of the stack can have a PR — the branches above it are still in progress.
-
-When `part-1` merges and you run `git sync`, `part-2` becomes the new
-bottom and you can run `git stack-pr` again.
-
----
-
-### Sync: a PR was merged
-
-PR #1 (`part-1`) gets merged. Run sync to update the stack:
-
-```bash
-git sync
-```
-
-Before:
-```
-main
- └─ part-1          ← merged
-     └─ part-2
-         └─ part-3  ← you are here
-```
-
-After:
-```
-main                ← includes part-1
- └─ part-2          ← rebased, now the bottom of the stack
-     └─ part-3      ← rebased (you are here)
-```
-
-`git sync` automatically detects that `part-1` was merged, deletes it,
-and rebases everything above onto the new main. Works with squash merges,
-rebase-and-merge, and regular merge commits.
-
----
-
-### Sync: you changed a branch lower in the stack
-
-You got review feedback on `part-1` and pushed a fix. Now `part-2` and
-`part-3` are out of date:
-
-```bash
-git checkout part-1
-# make changes, commit
-git sync
-```
-
-Before:
-```
-main
- └─ part-1 *        ← new commit added
-     └─ part-2      ← stale
-         └─ part-3  ← stale
-```
-
-After:
-```
-main
- └─ part-1          ← you are here
-     └─ part-2      ← rebased
-         └─ part-3  ← rebased
 ```
 
 ---
@@ -154,12 +80,9 @@ git yak --done
 
 ```
 main
- └─ refactor        ← git stack-pr "Refactor" to open PR
+ └─ refactor        ← ready for review
      └─ feature     ← you are back here, stash restored
 ```
-
-When `refactor` merges, `git sync` cleans it up and `feature` lands
-directly on main.
 
 ---
 
@@ -212,6 +135,79 @@ Same flow. Sync them from the bottom up as each one merges.
 
 ---
 
+### Sync: a PR was merged
+
+PR #1 (`part-1`) gets merged. Run sync to update the stack:
+
+```bash
+git sync
+```
+
+Before:
+```
+main
+ └─ part-1          ← merged
+     └─ part-2
+         └─ part-3  ← you are here
+```
+
+After:
+```
+main                ← includes part-1
+ └─ part-2          ← rebased, now the bottom of the stack
+     └─ part-3      ← rebased (you are here)
+```
+
+`git sync` automatically detects that `part-1` was merged, deletes it,
+and rebases everything above onto the new main. Works with squash merges,
+rebase-and-merge, and regular merge commits.
+
+---
+
+### Sync: you changed a branch lower in the stack
+
+You got review feedback on `part-1`. Fix it, commit, and sync:
+
+```bash
+git checkout part-1
+# make changes, commit, push
+git sync
+```
+
+Before:
+```
+main
+ └─ part-1 *        ← new commit added
+     └─ part-2      ← stale
+         └─ part-3  ← stale
+```
+
+After:
+```
+main
+ └─ part-1          ← you are here
+     └─ part-2      ← rebased
+         └─ part-3  ← rebased
+```
+
+---
+
+### Stack-pr: open a PR for the bottom branch
+
+When you're ready to send the bottom branch for review:
+
+```bash
+git stack-pr "Add feature part 1"
+```
+
+This finds the bottom of the stack, pushes it, and creates a PR targeting
+main. Run it from any branch in the stack — no checkout needed.
+
+When `part-1` merges and you run `git sync`, `part-2` becomes the new
+bottom and you can run `git stack-pr` again.
+
+---
+
 ### Conflicts
 
 If a rebase hits a conflict during `yak` or `sync`:
@@ -254,6 +250,8 @@ main
 ```
 
 The `[N]` is the commit count. The `←` marks the current branch.
+All commands print the tree after completing, so you always know where
+you are.
 
 ## Tests
 
