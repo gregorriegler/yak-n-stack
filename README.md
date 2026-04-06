@@ -1,190 +1,259 @@
-# git-yak, git-stack, git-sync
+# yak
 
-Three git commands for a workflow where you always start working on main, create small PRs, and stack your next change on top of each one without waiting for them to merge.
+Three git commands for stacking small PRs without waiting for them to merge.
+
+```
+git stack <name>     stack a new branch on top of the current one
+git yak <name>       insert a branch beneath your current work
+git sync             rebase the stack, cleaning up merged branches
+```
 
 ## Install
 
 ```bash
-cp git-yak git-stack git-sync /usr/local/bin/
+cp git-yak git-stack git-sync git-yak-tree /usr/local/bin/
 ```
 
-## The idea
+## Why
 
-You always start on main. When you are ready to PR, or when you find something you need to do first, you reach for one of these commands.
+You want to keep working while your PRs are in review. But each piece of
+work depends on the last, so you need your branches stacked in order.
+When a PR merges, you need everything above it rebased cleanly.
 
-- **git yak** moves your current work to a branch and drops you on a new branch for the thing you need to do first
-- **git stack** creates a new branch on top of your current one so you can keep going without waiting for the PR to merge
-- **git sync** updates your stack after a branch gets squash-merged into main
-
-The scripts track your stack by storing each branch's parent in git config under `branch.<name>.yak-parent`. They also enable rerere automatically so that repeated rebase conflicts across stack branches only need to be resolved once.
+These three commands handle the bookkeeping.
 
 ---
 
-## Flows
+## Use cases
 
-### 1. Basic: work on main, create a PR
+### Stack: keep going without waiting
 
-You work on main as usual. When you are ready to open a PR:
+You finished `part-1` and want to keep building on top:
 
 ```bash
-git yak fix-the-thing
+git stack part-2
+# work, commit, push, open PR targeting part-1
 ```
 
-If you have commits on main, the script asks you to name a branch for your current work, moves everything there, then drops you on `fix-the-thing` to do the yak. When done:
+```
+main
+ └─ part-1          ← PR #1
+     └─ part-2      ← PR #2 (you are here)
+```
+
+Stack as many as you need:
 
 ```bash
-git add .
-git commit -m "fix the thing"
-git push origin fix-the-thing
-# open PR
+git stack part-3
+```
+
+```
+main
+ └─ part-1          ← PR #1
+     └─ part-2      ← PR #2
+         └─ part-3  ← PR #3 (you are here)
+```
+
+Each PR shows only its own diff. Reviewers see small, focused changes.
+
+---
+
+### Sync: a PR was merged
+
+PR #1 (`part-1`) gets merged. Run sync to update the stack:
+
+```bash
+git sync
+```
+
+Before:
+```
+main
+ └─ part-1          ← merged
+     └─ part-2
+         └─ part-3  ← you are here
+```
+
+After:
+```
+main                ← includes part-1
+ └─ part-2          ← rebased, PR #2 now targets main
+     └─ part-3      ← rebased (you are here)
+```
+
+`git sync` automatically detects that `part-1` was merged, deletes it,
+and rebases everything above onto the new main. Works with squash merges,
+rebase-and-merge, and regular merge commits.
+
+---
+
+### Sync: you changed a branch lower in the stack
+
+You got review feedback on `part-1` and pushed a fix. Now `part-2` and
+`part-3` are out of date:
+
+```bash
+git checkout part-1
+# make changes, commit
+git sync
+```
+
+Before:
+```
+main
+ └─ part-1 *        ← new commit added
+     └─ part-2      ← stale
+         └─ part-3  ← stale
+```
+
+After:
+```
+main
+ └─ part-1          ← you are here
+     └─ part-2      ← rebased
+         └─ part-3  ← rebased
+```
+
+---
+
+### Yak: you found something that needs to happen first
+
+You are working on `feature` and realize you need a refactor to land first:
+
+```bash
+git yak refactor
+```
+
+Before:
+```
+main
+ └─ feature         ← you are here, mid-work
+```
+
+After:
+```
+main
+ └─ refactor        ← you are here, do the refactor
+     └─ feature     ← moved on top, waiting
+```
+
+The script stashes uncommitted changes, creates `refactor` beneath
+`feature`, rebases the stack, and drops you on `refactor`. When done:
+
+```bash
 git yak --done
 ```
 
-`--done` puts you back on your work branch with your stash restored.
+```
+main
+ └─ refactor        ← push this, open PR
+     └─ feature     ← you are back here, stash restored
+```
+
+When `refactor` merges, `git sync` cleans it up and `feature` lands
+directly on main.
 
 ---
 
-### 2. Stack: keep going without waiting for the PR to merge
+### Yak from a stack: prerequisite work while mid-stack
 
-You are on `feature-part-1` and want to continue building on top of it:
+You are on `part-3` and discover something that the whole stack needs:
 
 ```bash
-git stack feature-part-2
-# work, commit, push
-# open PR targeting feature-part-1
-git stack feature-part-3
-# work, commit, push
-# open PR targeting feature-part-2
+git yak prereq
 ```
 
-Each PR shows only the diff introduced by that branch. Reviewers see small focused changes. You never have to wait.
+Before:
+```
+main
+ └─ part-1
+     └─ part-2
+         └─ part-3  ← you are here
+```
+
+After:
+```
+main
+ └─ prereq          ← you are here
+     └─ part-1      ← rebased
+         └─ part-2  ← rebased
+             └─ part-3  ← rebased
+```
+
+`--done` returns you to `part-3`. When `prereq` merges, `git sync`
+moves the whole stack back onto main.
 
 ---
 
-### 3. Sync: a branch was squash-merged into main
+### Nested yaks: another yak while doing a yak
 
-`feature-part-1` merged. The squash creates a new commit on main with a different hash, so a plain rebase would replay the old commits and cause conflicts. Instead:
+You are on `refactor` and discover yet another thing:
 
 ```bash
-git sync feature-part-1
+git yak typo-fix
 ```
 
-This rebases `feature-part-2` directly onto `origin/main` using `--onto`, skipping the old commits from `feature-part-1`. Then it cascades up to `feature-part-3` and any further branches, force pushes them all, and cleans up the local `feature-part-1` branch.
+```
+main
+ └─ typo-fix        ← you are here
+     └─ refactor
+         └─ feature
+```
+
+Same flow. Sync them from the bottom up as each one merges.
 
 ---
 
-### 4. Yak from a stack: finding something you need to do first while mid-stack
+### Conflicts
 
-You are on `feature-part-2` and discover something that needs to happen before your whole stack. Just run:
-
-```bash
-git yak the-yak
-```
-
-The script walks down to the bottom of your stack, rebases the whole stack on top of `the-yak`, then drops you on `the-yak` to do the work. Your stack now looks like:
+If a rebase hits a conflict during `yak` or `sync`:
 
 ```
-main -> the-yak -> feature-part-1 -> feature-part-2 -> feature-part-3
-```
-
-When `the-yak` merges, run `git sync the-yak` and the rest of the stack moves onto main.
-
----
-
-### 5. Multiple yaks: finding another yak while doing a yak
-
-You are on `the-yak` and discover yet another thing that needs to happen first:
-
-```bash
-git yak deeper-yak
-```
-
-Same flow. The script inserts `deeper-yak` beneath `the-yak` and the rest of the stack. The stack becomes:
-
-```
-main -> deeper-yak -> the-yak -> feature-part-1 -> feature-part-2
-```
-
-Sync them from the bottom up as each one merges.
-
----
-
-### 6. Yak from main with no prior commits
-
-You just pulled main and haven't written anything yet. You spot something to fix:
-
-```bash
-git yak quick-fix
-```
-
-Since there are no commits on main, the script skips creating a work branch and just drops you on `quick-fix` directly. When done:
-
-```bash
-git yak --done
-# returns you to main
-```
-
----
-
-### 7. Conflict during yak or sync
-
-If a rebase hits a conflict:
-
-```
-Conflict rebasing 'feature-part-2' onto 'the-yak'.
+Conflict rebasing 'part-2' onto 'origin/main'.
 Resolve the conflicts, then run: git rebase --continue
-Then run: git yak --continue
+Then run: git sync --continue
 ```
 
-Resolve the conflict in your editor, then:
+Resolve, then:
 
 ```bash
 git add .
 git rebase --continue
-git yak --continue   # or git sync --continue
+git sync --continue   # or: git yak --continue
 ```
 
-Because rerere is enabled, if the same conflict appears on the next branch in the cascade, git resolves it automatically.
+Rerere is enabled automatically, so repeated conflicts across the stack
+resolve themselves.
 
----
-
-### 8. Aborting a yak or sync
-
-If you want to cancel and go back to exactly how things were:
+To cancel and restore everything:
 
 ```bash
-git yak --abort   # or git sync --abort
+git sync --abort   # or: git yak --abort
 ```
-
-This aborts any in-progress rebase, resets all branches that were already rebased back to their original commits, restores the original yak-parent config on your stack, force pushes the restored branches to remote if they were already pushed, deletes the yak branch, and pops your stash if one was saved.
 
 ---
 
-## Commands
+## How it works
 
+Branch relationships are stored in git config as `branch.<name>.yak-parent`.
+`git yak-tree` prints the current stack:
+
+```bash
+$ git yak-tree
+main
+ └─ refactor [2]
+     └─ feature [3] ←
 ```
-git yak <name>       insert a yak branch beneath your current work
-git yak --done       yak is finished, return to your work branch
-git yak --continue   continue the cascade after resolving a rebase conflict
-git yak --abort      cancel and restore everything to its original state
 
-git stack <name>     create a new branch stacked on top of the current one
-
-git sync <branch>    rebase the stack after <branch> was squash-merged into main
-git sync --continue  continue after resolving a rebase conflict
-git sync --abort     cancel and restore everything to its original state
-```
+The `[N]` is the commit count. The `←` marks the current branch.
 
 ## Notes
 
-- Branch names are tracked in git config as `branch.<name>.yak-parent`. If you rename or delete branches manually outside these commands, that config can go stale.
 - The scripts assume your remote is named `origin`.
-- If `init.defaultBranch` is not set in your git config, the scripts default to `main`. Set it explicitly if your repo uses a different name:
+- If `init.defaultBranch` is not set, the scripts default to `main`:
   ```bash
-  git config init.defaultBranch master
+  git config init.defaultBranch develop   # if your trunk is different
   ```
-- Rerere is enabled automatically on first use. If you want it globally across all repos:
-  ```bash
-  git config --global rerere.enabled true
-  git config --global rerere.autoupdate true
-  ```
+- If you rename or delete branches outside these commands, the
+  `yak-parent` config can go stale. Clean it up with
+  `git config --remove-section branch.<name>`.
