@@ -3,7 +3,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-COMMANDS=(git-yak git-stack git-sync git-yak-tree)
+COMMANDS=(git-yak git-stack git-sync git-yak-tree git-stack-pr)
 
 # find a writable bin directory on PATH
 find_bin_dir() {

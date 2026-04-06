@@ -1,11 +1,12 @@
 # yak
 
-Three git commands for stacking small PRs without waiting for them to merge.
+Git commands for stacking small PRs without waiting for them to merge.
 
 ```
-git stack <name>     stack a new branch on top of the current one
-git yak <name>       insert a branch beneath your current work
-git sync             rebase the stack, cleaning up merged branches
+git stack <name>      stack a new branch on top of the current one
+git yak <name>        insert a branch beneath your current work
+git sync              rebase the stack, cleaning up merged branches
+git stack-pr <title>  push and create a PR for the bottom branch
 ```
 
 ## Install
@@ -22,7 +23,7 @@ You want to keep working while your PRs are in review. But each piece of
 work depends on the last, so you need your branches stacked in order.
 When a PR merges, you need everything above it rebased cleanly.
 
-These three commands handle the bookkeeping.
+These commands handle the bookkeeping.
 
 ---
 
@@ -34,29 +35,34 @@ You finished `part-1` and want to keep building on top:
 
 ```bash
 git stack part-2
-# work, commit, push, open PR targeting part-1
+# work, commit
+git stack part-3
+# work, commit
 ```
 
 ```
 main
- └─ part-1          ← PR #1
-     └─ part-2      ← PR #2 (you are here)
+ └─ part-1          ← ready for review
+     └─ part-2
+         └─ part-3  ← you are here
 ```
 
-Stack as many as you need:
+---
+
+### Stack-pr: open a PR for the bottom branch
+
+When you're ready to send the bottom branch for review:
 
 ```bash
-git stack part-3
+git checkout part-1
+git stack-pr "Add feature part 1"
 ```
 
-```
-main
- └─ part-1          ← PR #1
-     └─ part-2      ← PR #2
-         └─ part-3  ← PR #3 (you are here)
-```
+This pushes the branch and creates a PR targeting main. Only the bottom
+of the stack can have a PR — the branches above it are still in progress.
 
-Each PR shows only its own diff. Reviewers see small, focused changes.
+When `part-1` merges and you run `git sync`, `part-2` becomes the new
+bottom and you can run `git stack-pr` again.
 
 ---
 
@@ -79,7 +85,7 @@ main
 After:
 ```
 main                ← includes part-1
- └─ part-2          ← rebased, PR #2 now targets main
+ └─ part-2          ← rebased, now the bottom of the stack
      └─ part-3      ← rebased (you are here)
 ```
 
@@ -148,7 +154,7 @@ git yak --done
 
 ```
 main
- └─ refactor        ← push this, open PR
+ └─ refactor        ← git stack-pr "Refactor" to open PR
      └─ feature     ← you are back here, stash restored
 ```
 
@@ -261,6 +267,7 @@ Read them if you want to understand exactly what each command does.
 
 ## Notes
 
+- `git stack-pr` requires the [GitHub CLI](https://cli.github.com/) (`gh`).
 - The scripts assume your remote is named `origin`.
 - If `init.defaultBranch` is not set, the scripts default to `main`:
   ```bash
