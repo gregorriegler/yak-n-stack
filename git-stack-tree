@@ -1,5 +1,5 @@
 #!/bin/bash
-# git-yak-tree: print a visual representation of the current branch stack
+# git-stack-tree: print a visual representation of the current branch stack
 
 MAIN_BRANCH=$(git config init.defaultBranch 2>/dev/null || echo "main")
 CURRENT=$(git branch --show-current 2>/dev/null || echo "")

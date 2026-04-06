@@ -41,7 +41,7 @@ make_branch() {
 }
 
 tree() {
-    git yak-tree
+    git stack-tree
 }
 
 # ── git stack ────────────────────────────────────────────────

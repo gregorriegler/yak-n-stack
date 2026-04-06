@@ -244,10 +244,10 @@ git sync --abort   # or: git yak --abort
 ## How it works
 
 Branch relationships are stored in git config as `branch.<name>.stack-parent`.
-`git yak-tree` prints the current stack:
+`git stack-tree` prints the current stack:
 
 ```bash
-$ git yak-tree
+$ git stack-tree
 main
  └─ refactor [2]
      └─ feature [3] ←

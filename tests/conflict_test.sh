@@ -41,7 +41,7 @@ make_branch() {
 }
 
 tree() {
-    git yak-tree
+    git stack-tree
 }
 
 # push a commit to origin/main that edits a file, creating a conflict

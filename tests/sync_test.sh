@@ -41,7 +41,7 @@ make_branch() {
 }
 
 tree() {
-    git yak-tree
+    git stack-tree
 }
 
 # simulate a squash-merge of a branch into main on the remote
