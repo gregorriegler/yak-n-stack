@@ -41,15 +41,15 @@ git stack-tree           # print the branch stack
 - `/yak stack-pr "Add feature"` → `git stack-pr "Add feature"`
 - `/yak tree` → `git stack-tree`
 - `/yak done` → `git yak --done`
-- `/yak continue` → resume whichever operation (yak or sync) is in progress
-- `/yak abort` → abort whichever operation is in progress
+- `/yak continue` → check `git config yak.in-progress` or `git config sync.in-progress` to decide `git yak --continue` or `git sync --continue`
+- `/yak abort` → same check, then `git yak --abort` or `git sync --abort`
 - `/yak install` → `${CLAUDE_SKILL_DIR}/install.sh`
 - `/yak` with no args → run `git stack-tree` and report status
 
 ## Notes
 
 - Branch relationships are stored in `branch.<name>.stack-parent` git config.
-- `stack-pr` only works for the bottom branch of the stack (parent is main).
+- `stack-pr` finds the bottom branch automatically — run it from any branch in the stack.
 - Rerere is enabled automatically so repeated conflicts resolve themselves.
 - Always use `--force-with-lease` (never `--force`) when pushing.
 - When a rebase conflicts, guide the user to resolve, then `--continue`.
