@@ -2,25 +2,28 @@
 name: yak
 description: >
   Stacked PR workflow. Use when the user wants to create stacked branches,
-  insert a yak branch beneath current work, or sync a stack after a squash merge.
-  TRIGGER when: user says "yak", "stack", "sync", or talks about stacking PRs/branches.
-argument-hint: <yak|stack|sync|done|continue|abort|install> [branch-name]
-allowed-tools: Bash(git *) Bash(${CLAUDE_SKILL_DIR}/install.sh *) Bash(chmod *)
+  insert a yak branch beneath current work, sync a stack, or create a PR.
+  TRIGGER when: user says "yak", "stack", "sync", "stack-pr", or talks about stacking PRs/branches.
+argument-hint: <yak|stack|sync|stack-pr|tree|done|continue|abort|install> [branch-name|title]
+allowed-tools: Bash(git *) Bash(gh *) Bash(${CLAUDE_SKILL_DIR}/install.sh *) Bash(chmod *)
 ---
 
 # yak — stacked PR workflow
 
-You manage a stacked-branch workflow using three operations: **yak**, **stack**, and **sync**.
+You manage a stacked-branch workflow using these operations: **yak**, **stack**, **sync**, **stack-pr**, and **tree**.
 Branch relationships are tracked in git config as `branch.<name>.stack-parent`.
 
 Interpret `$ARGUMENTS` to decide which operation to run. Examples:
 - `/yak fix-auth` → yak (insert yak branch called "fix-auth")
 - `/yak stack part-2` → stack (create stacked branch "part-2")
-- `/yak sync part-1` → sync (part-1 was squash-merged, rebase the rest)
+- `/yak sync` → sync (rebase the stack, auto-detect merged branches)
+- `/yak sync part-1` → sync (part-1 was merged, rebase the rest)
+- `/yak stack-pr "Add feature"` → create a PR for the bottom branch
+- `/yak tree` → show the branch stack
 - `/yak done` → finish the current yak
 - `/yak continue` → resume after conflict resolution
 - `/yak abort` → cancel and restore state
-- `/yak install` → install git-yak, git-stack, git-sync as git subcommands
+- `/yak install` → install commands as git subcommands
 - `/yak` with no args → show status (current branch, stack, any in-progress operation)
 
 ## Setup
@@ -108,9 +111,25 @@ Create a new branch stacked on the current one.
 3. `git config branch.<name>.stack-parent <current-branch>`
 4. Confirm to user.
 
+## Operation: sync (no args)
+
+Rebase the entire stack. Auto-detects and removes squash-merged branches.
+
+### Steps
+
+1. If on main with no stacked branches, exit with "Nothing to sync."
+2. `git fetch origin`
+3. Walk `stack-parent` from the current branch to find the stack root.
+4. Collect the full stack from root upward.
+5. Check each branch from the bottom using `git cherry` — if all commits have equivalents on `origin/MAIN`, the branch was merged. Remove it and reparent the branch above.
+6. Save state in `sync.*` config for continue/abort support.
+7. **Cascade rebase** remaining branches onto their parents.
+8. Update `stack-parent` config for each rebased branch.
+9. Return to the original branch.
+
 ## Operation: sync <merged-branch>
 
-After `<merged-branch>` was squash-merged into main, rebase the remaining stack onto main.
+After `<merged-branch>` was merged into main, rebase the remaining stack onto main.
 
 ### Steps
 
@@ -137,6 +156,21 @@ Same as yak continue but reads from `sync.*` config. After cascade, does the pus
 
 Same pattern as yak abort but reads from `sync.*` config. Reset rebased branches, restore remote state.
 
+## Operation: stack-pr <title>
+
+Create a PR for the bottom branch of the stack.
+
+1. Fail if not on a branch, or if on main.
+2. Fail if the branch has no `stack-parent` config.
+3. Fail if the branch's parent is not `origin/MAIN` (i.e., it's not the bottom of the stack).
+4. `git push -u origin <branch>`
+5. `gh pr create --base MAIN --title <title> --body ""`
+6. Print the PR URL.
+
+## Operation: tree
+
+Show the branch stack by running `git stack-tree`.
+
 ## Operation: status (no args)
 
 Show the user:
@@ -146,7 +180,7 @@ Show the user:
 
 ## Operation: install
 
-Install the git-yak, git-stack, git-sync scripts as git subcommands so the user can also use them directly from the terminal.
+Install the git commands as git subcommands so the user can also use them directly from the terminal.
 
 Run:
 ```
