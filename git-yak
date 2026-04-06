@@ -126,7 +126,7 @@ if [ "$1" = "--abort" ]; then
 
     # restore STACK[0]'s original parent
     if [ "${#STACK[@]}" -gt 0 ] && [ -n "$ORIGINAL_BOTTOM_PARENT" ]; then
-        git config "branch.${STACK[0]}.yak-parent" "$ORIGINAL_BOTTOM_PARENT"
+        git config "branch.${STACK[0]}.stack-parent" "$ORIGINAL_BOTTOM_PARENT"
     fi
 
     if [ -n "$RETURN_TO" ]; then
@@ -208,7 +208,7 @@ if [ "$CURRENT" = "$MAIN_BRANCH" ]; then
         done
         WORK_BRANCH="work-$WORK_N"
         git checkout -b "$WORK_BRANCH"
-        git config "branch.$WORK_BRANCH.yak-parent" "origin/$MAIN_BRANCH"
+        git config "branch.$WORK_BRANCH.stack-parent" "origin/$MAIN_BRANCH"
         CURRENT="$WORK_BRANCH"
         RETURN_TO="$WORK_BRANCH"
         STACK=("$WORK_BRANCH")
@@ -218,7 +218,7 @@ else
     B="$CURRENT"
     while true; do
         TOP_DOWN+=("$B")
-        PARENT=$(git config "branch.$B.yak-parent" 2>/dev/null || echo "")
+        PARENT=$(git config "branch.$B.stack-parent" 2>/dev/null || echo "")
         if [ -z "$PARENT" ] || [ "$PARENT" = "origin/$MAIN_BRANCH" ] || [ "$PARENT" = "$MAIN_BRANCH" ]; then
             break
         fi
@@ -237,11 +237,11 @@ for B in "${STACK[@]}"; do
 done
 
 git checkout -b "$YAK_NAME" "origin/$MAIN_BRANCH"
-git config "branch.$YAK_NAME.yak-parent" "origin/$MAIN_BRANCH"
+git config "branch.$YAK_NAME.stack-parent" "origin/$MAIN_BRANCH"
 
 if [ "${#STACK[@]}" -gt 0 ]; then
-    ORIGINAL_BOTTOM_PARENT=$(git config "branch.${STACK[0]}.yak-parent" 2>/dev/null || echo "origin/$MAIN_BRANCH")
-    git config "branch.${STACK[0]}.yak-parent" "$YAK_NAME"
+    ORIGINAL_BOTTOM_PARENT=$(git config "branch.${STACK[0]}.stack-parent" 2>/dev/null || echo "origin/$MAIN_BRANCH")
+    git config "branch.${STACK[0]}.stack-parent" "$YAK_NAME"
 fi
 
 git config yak.in-progress           true

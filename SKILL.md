@@ -11,7 +11,7 @@ allowed-tools: Bash(git *) Bash(${CLAUDE_SKILL_DIR}/install.sh *) Bash(chmod *)
 # yak — stacked PR workflow
 
 You manage a stacked-branch workflow using three operations: **yak**, **stack**, and **sync**.
-Branch relationships are tracked in git config as `branch.<name>.yak-parent`.
+Branch relationships are tracked in git config as `branch.<name>.stack-parent`.
 
 Interpret `$ARGUMENTS` to decide which operation to run. Examples:
 - `/yak fix-auth` → yak (insert yak branch called "fix-auth")
@@ -49,15 +49,15 @@ Insert a branch beneath the current work so you can do something first.
 3. `git fetch origin`
 4. **If on MAIN:**
    - Count commits ahead of `origin/MAIN`.
-   - If there are commits, ask the user for a work-branch name, then `git checkout -b <work-branch>` and set its `yak-parent` to `origin/MAIN`. This becomes the bottom of the stack.
+   - If there are commits, ask the user for a work-branch name, then `git checkout -b <work-branch>` and set its `stack-parent` to `origin/MAIN`. This becomes the bottom of the stack.
    - If no commits, there's no stack to rebase — just create the yak branch and go.
 5. **If on a feature branch:**
-   - Walk `yak-parent` config down to find the full stack (bottom to top).
+   - Walk `stack-parent` config down to find the full stack (bottom to top).
    - Collect the stack from current branch down to the branch whose parent is `origin/MAIN`.
 6. Save old tips (`git rev-parse <branch>`) and remote tips (`git rev-parse origin/<branch>`) for every stack branch (needed for abort).
 7. `git checkout -b <yak-name> origin/MAIN` — create the yak branch from main.
-8. Set `branch.<yak-name>.yak-parent` to `origin/MAIN`.
-9. Set `branch.<bottom-of-stack>.yak-parent` to `<yak-name>` (insert the yak beneath the stack).
+8. Set `branch.<yak-name>.stack-parent` to `origin/MAIN`.
+9. Set `branch.<bottom-of-stack>.stack-parent` to `<yak-name>` (insert the yak beneath the stack).
 10. Save in-progress state in git config under `yak.*`:
     - `yak.in-progress`, `yak.return-to`, `yak.has-stash`, `yak.yak-name`
     - `yak.cascade-stack` (space-separated branch names)
@@ -94,7 +94,7 @@ Cancel the yak and restore everything.
 2. For each stack branch that was already rebased (index 0 to cascade-index - 1):
    - `git checkout <branch> && git reset --hard <old-tip>`
    - If the branch had a remote tip, `git push --force-with-lease=<branch>:<remote-tip> origin <branch>`
-3. Restore the bottom branch's original `yak-parent`.
+3. Restore the bottom branch's original `stack-parent`.
 4. Delete the yak branch.
 5. Checkout `return-to`, pop stash if needed.
 6. Clean up all `yak.*` config.
@@ -105,7 +105,7 @@ Create a new branch stacked on the current one.
 
 1. Fail if not on a branch, or if `<name>` already exists.
 2. `git checkout -b <name>`
-3. `git config branch.<name>.yak-parent <current-branch>`
+3. `git config branch.<name>.stack-parent <current-branch>`
 4. Confirm to user.
 
 ## Operation: sync <merged-branch>
@@ -115,7 +115,7 @@ After `<merged-branch>` was squash-merged into main, rebase the remaining stack 
 ### Steps
 
 1. `git fetch origin`
-2. Find the child of `<merged-branch>` by scanning `git config --get-regexp 'branch\..*\.yak-parent'` for a branch whose parent is `<merged-branch>`.
+2. Find the child of `<merged-branch>` by scanning `git config --get-regexp 'branch\..*\.stack-parent'` for a branch whose parent is `<merged-branch>`.
 3. If no child found, just delete the local branch and its config. Done.
 4. Walk upward from the child to collect the full stack above the merged branch.
 5. Save old tips and remote tips for each stack branch.
@@ -124,7 +124,7 @@ After `<merged-branch>` was squash-merged into main, rebase the remaining stack 
    - First branch: `git rebase --onto origin/MAIN <merged-branch> <branch>`
    - Subsequent: `git rebase --onto <prev-branch> <prev-old-tip> <branch>`
    - On conflict: tell user to resolve, `git rebase --continue`, then `/yak sync --continue`.
-8. Update `branch.<first-child>.yak-parent` to `origin/MAIN`.
+8. Update `branch.<first-child>.stack-parent` to `origin/MAIN`.
 9. Force-push each rebased branch: `git push --force-with-lease=<branch>:<old-remote-tip> origin <branch>`
 10. Delete the merged branch locally and its git config section.
 11. Clean up `sync.*` config.
@@ -141,7 +141,7 @@ Same pattern as yak abort but reads from `sync.*` config. Reset rebased branches
 
 Show the user:
 - Current branch
-- The stack (walk yak-parent from current branch down, and find children above)
+- The stack (walk stack-parent from current branch down, and find children above)
 - Whether a yak or sync is in progress
 
 ## Operation: install

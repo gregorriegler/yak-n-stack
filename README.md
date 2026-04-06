@@ -237,7 +237,7 @@ git sync --abort   # or: git yak --abort
 
 ## How it works
 
-Branch relationships are stored in git config as `branch.<name>.yak-parent`.
+Branch relationships are stored in git config as `branch.<name>.stack-parent`.
 `git yak-tree` prints the current stack:
 
 ```bash
@@ -267,5 +267,5 @@ Read them if you want to understand exactly what each command does.
   git config init.defaultBranch develop   # if your trunk is different
   ```
 - If you rename or delete branches outside these commands, the
-  `yak-parent` config can go stale. Clean it up with
+  `stack-parent` config can go stale. Clean it up with
   `git config --remove-section branch.<name>`.

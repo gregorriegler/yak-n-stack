@@ -36,7 +36,7 @@ commit() {
 
 make_branch() {
     git checkout -b "$1" >/dev/null 2>&1
-    git config "branch.$1.yak-parent" origin/main
+    git config "branch.$1.stack-parent" origin/main
     commit "$1"
 }
 
