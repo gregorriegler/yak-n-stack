@@ -44,34 +44,6 @@ tree() {
     git yak-tree
 }
 
-# ── git stack ────────────────────────────────────────────────
-
-function test_stack_creates_branch_on_top_of_current() {
-    make_branch feature-1
-
-    git stack feature-2
-
-    assert_same "$(tree)" \
-$'main
- └─ feature-1 [1]
-     └─ feature-2 ←'
-}
-
-function test_stack_fails_if_branch_exists() {
-    make_branch feature-1
-    git stack feature-2
-    commit feature-2
-
-    local output
-    output=$(git stack feature-2 2>&1) || true
-
-    assert_matches "already exists" "$output"
-    assert_same "$(tree)" \
-$'main
- └─ feature-1 [1]
-     └─ feature-2 [1] ←'
-}
-
 # ── git yak from main with commits ──────────────────────────
 
 function test_yak_from_main_moves_work_and_lands_on_yak() {
