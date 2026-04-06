@@ -1,5 +1,5 @@
 #!/bin/bash
-# git-stack-pr: create a PR for the bottom branch in the stack
+# git-stack-pr: create a PR for the bottom branch of the stack
 set -e
 
 MAIN_BRANCH=$(git config init.defaultBranch 2>/dev/null || echo "main")
@@ -23,18 +23,20 @@ if [ -z "$PARENT" ]; then
     exit 1
 fi
 
-# resolve parent to a branch name (strip origin/ prefix)
-BASE="${PARENT#origin/}"
+# walk down to the bottom of the stack
+BOTTOM="$BRANCH"
+while true; do
+    PARENT=$(git config "branch.$BOTTOM.stack-parent" 2>/dev/null || echo "")
+    BASE="${PARENT#origin/}"
+    if [ "$BASE" = "$MAIN_BRANCH" ]; then
+        break
+    fi
+    BOTTOM="$PARENT"
+done
 
-# only allow PR creation for the bottom of the stack
-if [ "$BASE" != "$MAIN_BRANCH" ]; then
-    echo "Error: only the bottom branch of the stack can create a PR. '$BRANCH' is stacked on '$BASE'."
-    exit 1
-fi
-
-# push the branch
-git push -u origin "$BRANCH" --force-with-lease >/dev/null 2>&1 || \
-    git push -u origin "$BRANCH" >/dev/null 2>&1
+# push the bottom branch without checking it out
+git push origin "$BOTTOM" --force-with-lease >/dev/null 2>&1 || \
+    git push origin "$BOTTOM" >/dev/null 2>&1
 
 # create the PR targeting main
-gh pr create --base "$MAIN_BRANCH" --title "$TITLE" --body ""
+gh pr create --head "$BOTTOM" --base "$MAIN_BRANCH" --title "$TITLE" --body ""

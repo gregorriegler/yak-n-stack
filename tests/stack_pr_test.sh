@@ -93,15 +93,32 @@ function test_stack_pr_pushes_branch_before_creating_pr() {
     assert_not_empty "$remote_ref"
 }
 
-function test_stack_pr_errors_if_not_bottom_of_stack() {
+function test_stack_pr_from_higher_branch_creates_pr_for_bottom() {
+    make_branch part-1
+    git stack part-2
+    commit part-2
+    git stack part-3
+    commit part-3
+
+    # on part-3, but PR should be for part-1
+    local output
+    output=$(git stack-pr "Add part 1")
+
+    assert_matches "https://github.com" "$output"
+    # part-1 should be pushed
+    local remote_ref
+    remote_ref=$(git ls-remote origin part-1 2>/dev/null | head -1)
+    assert_not_empty "$remote_ref"
+}
+
+function test_stack_pr_from_higher_branch_stays_on_current_branch() {
     make_branch part-1
     git stack part-2
     commit part-2
 
-    local output
-    output=$(git stack-pr "Add part 2" 2>&1) || true
+    git stack-pr "Add part 1" >/dev/null 2>&1
 
-    assert_matches "only the bottom" "$output"
+    assert_same "part-2" "$(git branch --show-current)"
 }
 
 function test_stack_pr_errors_on_main() {
