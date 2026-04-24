@@ -39,9 +39,12 @@ jobs:
 
       - name: Run tests with coverage
         run: |
+          # Output path must be absolute: tests cd into temp work dirs before
+          # invoking the git-* scripts, which breaks kcov's bash helpers
+          # (BASH_ENV, LD_PRELOAD) if they were resolved relative to cwd.
           kcov \
-            --include-path="$(pwd)/git-stack,$(pwd)/git-yak,$(pwd)/git-sync" \
-            coverage \
+            --include-path="$(pwd)/git-stack,$(pwd)/git-stack-pr,$(pwd)/git-stack-tree,$(pwd)/git-sync,$(pwd)/git-yak" \
+            "$(pwd)/coverage" \
             ./lib/bashunit tests/conflict_test.sh tests/stack_pr_test.sh tests/stack_test.sh tests/sync_test.sh tests/yak_test.sh
 
       - name: Compute badge JSON
