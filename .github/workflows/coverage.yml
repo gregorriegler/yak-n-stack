@@ -1,0 +1,87 @@
+name: Coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: write
+
+env:
+  GIT_EDITOR: "true"
+
+jobs:
+  coverage:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure git defaults for tests
+        run: |
+          git config --global init.defaultBranch main
+          git config --global user.name  'Test'
+          git config --global user.email 'test@test.com'
+
+      - name: Install kcov
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y kcov
+
+      - name: Install bashunit
+        run: curl -s https://bashunit.typeddevs.com/install.sh | bash
+
+      - name: Run tests with coverage
+        run: |
+          kcov \
+            --include-pattern=git-stack,git-yak,git-sync \
+            coverage \
+            ./lib/bashunit tests/conflict_test.sh tests/stack_pr_test.sh tests/stack_test.sh tests/sync_test.sh tests/yak_test.sh
+
+      - name: Compute badge JSON
+        id: badge
+        run: |
+          PCT=$(jq -r '.percent_covered' coverage/*/coverage.json | head -n1 | awk '{printf "%.0f", $1}')
+          if   [ "$PCT" -ge 90 ]; then COLOR=brightgreen
+          elif [ "$PCT" -ge 75 ]; then COLOR=green
+          elif [ "$PCT" -ge 60 ]; then COLOR=yellowgreen
+          elif [ "$PCT" -ge 40 ]; then COLOR=yellow
+          elif [ "$PCT" -ge 20 ]; then COLOR=orange
+          else                         COLOR=red
+          fi
+          mkdir -p badge-out
+          cat > badge-out/coverage.json <<EOF
+          {"schemaVersion":1,"label":"coverage","message":"${PCT}%","color":"${COLOR}"}
+          EOF
+          echo "Coverage: ${PCT}%"
+
+      - name: Publish badge to badges branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config --global user.name  'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          TMP=$(mktemp -d)
+          git clone --depth=1 --branch badges \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "$TMP" 2>/dev/null || {
+              git clone --depth=1 \
+                "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+                "$TMP"
+              cd "$TMP"
+              git checkout --orphan badges
+              git rm -rf . >/dev/null 2>&1 || true
+              cd -
+          }
+
+          cp badge-out/coverage.json "$TMP/coverage.json"
+          cd "$TMP"
+          git add coverage.json
+          if ! git diff --staged --quiet; then
+            git commit -m "Update coverage badge"
+            git push origin badges
+          else
+            echo "No badge change."
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
