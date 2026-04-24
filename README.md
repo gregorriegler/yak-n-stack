@@ -1,5 +1,6 @@
 # yak
 
+![Build](https://img.shields.io/github/actions/workflow/status/gregorriegler/yak-n-stack/coverage.yml?branch=main&label=build)
 ![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/gregorriegler/yak-n-stack/badges/coverage.json)
 
 Git commands for stacking small PRs without waiting for them to merge.
