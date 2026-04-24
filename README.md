@@ -1,4 +1,4 @@
-# yak
+# yak-n-stack
 
 ![Build](https://img.shields.io/github/actions/workflow/status/gregorriegler/yak-n-stack/coverage.yml?branch=main&label=build)
 ![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/gregorriegler/yak-n-stack/badges/coverage.json)
@@ -6,10 +6,10 @@
 Git commands for stacking small PRs without waiting for them to merge.
 
 ```
-git stack <name>      stack a new branch on top of the current one
 git yak <name>        insert a branch beneath your current work
-git sync              rebase the stack, cleaning up merged branches
+git stack <name>      stack a new branch on top of the current one
 git stack-pr <title>  push and create a PR for the bottom branch
+git sync              rebase the stack, cleaning up merged branches
 git stack-tree        print the branch stack
 ```
 
@@ -21,50 +21,23 @@ git stack-tree        print the branch stack
 ./install.sh --uninstall
 ```
 
-## Why
-
-You want to keep working while your PRs are in review. But each piece of
-work depends on the last, so you need your branches stacked in order.
-When a PR merges, you need everything above it rebased cleanly.
-
-These commands handle the bookkeeping.
-
 ---
 
-## Use cases
+## Yak: something needs to happen first
 
-### Stack: keep going without waiting
-
-You finished `part-1` and want to keep building on top:
-
-```bash
-git stack part-2
-# work, commit
-git stack part-3
-# work, commit
-```
-
-```
-main
- └─ part-1
-     └─ part-2
-         └─ part-3  ← you are here
-```
-
----
-
-### Yak: you found something that needs to happen first
-
-You are working on `feature` and realize you need a refactor to land first:
-
-```bash
-git yak refactor
-```
+You are working on `feature` and realize you need a refactor to land first.
 
 Before:
 ```
 main
  └─ feature         ← you are here, mid-work
+```
+
+Motivation: the refactor is a prerequisite. You want it reviewed and
+merged on its own, with `feature` waiting on top.
+
+```bash
+git yak refactor
 ```
 
 After:
@@ -89,154 +62,82 @@ main
 
 ---
 
-### Yak from a stack: prerequisite work while mid-stack
+## Stack: keep going without waiting
 
-You are on `part-3` and discover something that the whole stack needs:
+You finished `part-1` and want to keep building on top.
+
+Before:
+```
+main
+ └─ part-1          ← you are here, done but not merged
+```
+
+Motivation: `part-1` is in review. You don't want to wait — you want to
+start `part-2` on top, so it's ready the moment `part-1` lands.
 
 ```bash
-git yak prereq
+git stack part-2
 ```
+
+After:
+```
+main
+ └─ part-1
+     └─ part-2      ← you are here
+```
+
+---
+
+## Stack-pr: open a PR for the bottom branch
+
+You're ready to send the bottom branch for review.
 
 Before:
 ```
 main
  └─ part-1
-     └─ part-2
-         └─ part-3  ← you are here
+     └─ part-2      ← you are here
 ```
 
-After:
-```
-main
- └─ prereq          ← you are here
-     └─ part-1      ← rebased
-         └─ part-2  ← rebased
-             └─ part-3  ← rebased
-```
-
-`--done` returns you to `part-3`. When `prereq` merges, `git sync`
-moves the whole stack back onto main.
-
----
-
-### Nested yaks: another yak while doing a yak
-
-You are on `refactor` and discover yet another thing:
-
-```bash
-git yak typo-fix
-```
-
-```
-main
- └─ typo-fix        ← you are here
-     └─ refactor
-         └─ feature
-```
-
-Same flow. Sync them from the bottom up as each one merges.
-
----
-
-### Sync: a PR was merged
-
-PR #1 (`part-1`) gets merged. Run sync to update the stack:
-
-```bash
-git sync
-```
-
-Before:
-```
-main
- └─ part-1          ← merged
-     └─ part-2
-         └─ part-3  ← you are here
-```
-
-After:
-```
-main                ← includes part-1
- └─ part-2          ← rebased, now the bottom of the stack
-     └─ part-3      ← rebased (you are here)
-```
-
-`git sync` automatically detects that `part-1` was merged, deletes it,
-and rebases everything above onto the new main. Works with squash merges,
-rebase-and-merge, and regular merge commits.
-
----
-
-### Sync: you changed a branch lower in the stack
-
-You got review feedback on `part-1`. Fix it, commit, and sync:
-
-```bash
-git checkout part-1
-# make changes, commit, push
-git sync
-```
-
-Before:
-```
-main
- └─ part-1 *        ← new commit added
-     └─ part-2      ← stale
-         └─ part-3  ← stale
-```
-
-After:
-```
-main
- └─ part-1          ← you are here
-     └─ part-2      ← rebased
-         └─ part-3  ← rebased
-```
-
----
-
-### Stack-pr: open a PR for the bottom branch
-
-When you're ready to send the bottom branch for review:
+Motivation: only the bottom branch can be merged next. `stack-pr` finds
+it and opens the PR against main — no checkout needed.
 
 ```bash
 git stack-pr "Add feature part 1"
 ```
 
-This finds the bottom of the stack, pushes it, and creates a PR targeting
-main. Run it from any branch in the stack — no checkout needed.
-
-When `part-1` merges and you run `git sync`, `part-2` becomes the new
-bottom and you can run `git stack-pr` again.
+After: `part-1` is pushed and a PR is open against main. You stay on
+`part-2` and keep working.
 
 ---
 
-### Conflicts
+## Sync: a PR was merged
 
-If a rebase hits a conflict during `yak` or `sync`:
+PR #1 (`part-1`) gets merged.
 
+Before:
 ```
-Conflict rebasing 'part-2' onto 'origin/main'.
-Resolve the conflicts, then run: git rebase --continue
-Then run: git sync --continue
+main
+ └─ part-1          ← merged
+     └─ part-2      ← you are here
 ```
 
-Resolve, then:
+Motivation: main moved forward. The stack needs to be rebased onto the
+new main, and the merged branch cleaned up.
 
 ```bash
-git add .
-git rebase --continue
-git sync --continue   # or: git yak --continue
+git sync
 ```
 
-Rerere is enabled automatically, so repeated conflicts across the stack
-resolve themselves.
-
-To cancel and restore everything:
-
-```bash
-git sync --abort   # or: git yak --abort
+After:
 ```
+main                ← includes part-1
+ └─ part-2          ← rebased onto new main (you are here)
+```
+
+`git sync` detects that `part-1` was merged, deletes it, and rebases
+everything above onto the new main. Works with squash merges,
+rebase-and-merge, and regular merge commits.
 
 ---
 
@@ -257,10 +158,6 @@ All commands print the tree after completing, so you always know where
 you are.
 
 ## Tests
-
-The [tests](tests/) cover every use case above in detail, including edge
-cases like nested yaks, conflict resolution, and squash-merge detection.
-Read them if you want to understand exactly what each command does.
 
 ```bash
 ./test.sh
