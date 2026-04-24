@@ -34,14 +34,31 @@ jobs:
       - name: Run tests with coverage
         run: |
           kcov \
-            --include-pattern=git-stack,git-yak,git-sync \
+            --include-path="$(pwd)/git-stack,$(pwd)/git-yak,$(pwd)/git-sync" \
             coverage \
             ./lib/bashunit tests/conflict_test.sh tests/stack_pr_test.sh tests/stack_test.sh tests/sync_test.sh tests/yak_test.sh
 
       - name: Compute badge JSON
         id: badge
         run: |
-          PCT=$(jq -r '.percent_covered' coverage/*/coverage.json | head -n1 | awk '{printf "%.0f", $1}')
+          echo "kcov output tree:"
+          find coverage -maxdepth 2 -type f | sort
+          COV_JSON=$(ls coverage/*/coverage.json 2>/dev/null | head -n1)
+          if [ -z "$COV_JSON" ]; then
+            echo "No coverage.json produced by kcov."
+            PCT=0
+          else
+            echo "Using $COV_JSON"
+            cat "$COV_JSON"
+            echo
+            RAW=$(jq -r '.percent_covered // empty' "$COV_JSON")
+            if [ -z "$RAW" ]; then
+              echo "percent_covered missing; defaulting to 0."
+              PCT=0
+            else
+              PCT=$(awk -v v="$RAW" 'BEGIN { printf "%.0f", v+0 }')
+            fi
+          fi
           if   [ "$PCT" -ge 90 ]; then COLOR=brightgreen
           elif [ "$PCT" -ge 75 ]; then COLOR=green
           elif [ "$PCT" -ge 60 ]; then COLOR=yellowgreen
