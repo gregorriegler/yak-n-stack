@@ -34,6 +34,7 @@ jobs:
       - name: Run tests with coverage
         run: |
           kcov \
+            --bash-handle-sh-invocation \
             --include-path="$(pwd)/git-stack,$(pwd)/git-yak,$(pwd)/git-sync" \
             coverage \
             ./lib/bashunit tests/conflict_test.sh tests/stack_pr_test.sh tests/stack_test.sh tests/sync_test.sh tests/yak_test.sh
