@@ -22,12 +22,31 @@ jobs:
       - name: Install bashunit
         run: curl -s https://bashunit.typeddevs.com/install.sh | bash
 
+      - name: Diagnostics
+        run: |
+          set -x
+          pwd
+          ls -la
+          ls -la lib/ || true
+          which kcov
+          kcov --version
+          ls -la ./lib/bashunit || true
+          file ./lib/bashunit || true
+
+      - name: Run tests without coverage (baseline)
+        run: ./test.sh
+
       - name: Run tests with coverage
         run: |
+          set -x
           kcov \
             --include-pattern=git-stack,git-yak,git-sync \
             coverage \
             ./lib/bashunit tests/conflict_test.sh tests/stack_pr_test.sh tests/stack_test.sh tests/sync_test.sh tests/yak_test.sh
+          echo "--- coverage tree ---"
+          find coverage -maxdepth 3 -type f | head -50
+          echo "--- coverage.json (first hit) ---"
+          cat coverage/*/coverage.json 2>/dev/null | head -50 || true
 
       - name: Compute badge JSON
         id: badge
