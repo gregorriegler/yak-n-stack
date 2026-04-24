@@ -14,6 +14,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Configure git defaults for tests
+        run: |
+          git config --global init.defaultBranch main
+          git config --global user.name  'Test'
+          git config --global user.email 'test@test.com'
+
       - name: Install kcov
         run: |
           sudo apt-get update
