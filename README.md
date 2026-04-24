@@ -1,6 +1,6 @@
 # yak
 
-[![Coverage](https://codecov.io/gh/gregorriegler/yak-n-stack/branch/main/graph/badge.svg)](https://codecov.io/gh/gregorriegler/yak-n-stack)
+![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/gregorriegler/yak-n-stack/badges/coverage.json)
 
 Git commands for stacking small PRs without waiting for them to merge.
 
