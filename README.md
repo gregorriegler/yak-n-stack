@@ -1,5 +1,7 @@
 # yak
 
+[![Coverage](https://codecov.io/gh/gregorriegler/yak-n-stack/branch/main/graph/badge.svg)](https://codecov.io/gh/gregorriegler/yak-n-stack)
+
 Git commands for stacking small PRs without waiting for them to merge.
 
 ```
