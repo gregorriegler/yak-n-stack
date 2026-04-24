@@ -1,6 +1,13 @@
 #!/bin/bash
 # git-yak: insert a yak branch beneath your current work
 
+# Work around kcov --bash-handle-sh-invocation (v42) duplicating argv[0] into $1.
+# See kcov src/engines/bash-execve-redirector.c — its argv-rebuild loop starts
+# at i=0, so the script path arrives twice. Shift it off if we see it.
+if [ $# -gt 0 ] && { [ "$1" = "$0" ] || [ "$1" = "${0##*/}" ]; }; then
+    shift
+fi
+
 MAIN_BRANCH=$(git config init.defaultBranch 2>/dev/null || echo "main")
 
 usage() {
