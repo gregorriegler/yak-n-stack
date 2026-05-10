@@ -15,10 +15,11 @@ fi
 MAIN_BRANCH=$(git config init.defaultBranch 2>/dev/null || echo "main")
 
 usage() {
-    echo "Usage: git yak <yak-name>   start a yak beneath your current work"
-    echo "       git yak --done       yak is done, return to your work"
-    echo "       git yak --continue   continue after resolving a rebase conflict"
-    echo "       git yak --abort      cancel the yak and restore original state"
+    echo "Usage: git yak <yak-name>          start a yak beneath your current work"
+    echo "       git yak --branch <name>     same as above (explicit branch mode)"
+    echo "       git yak --done              yak is done, return to your work"
+    echo "       git yak --continue          continue after resolving a rebase conflict"
+    echo "       git yak --abort             cancel the yak and restore original state"
 }
 
 ensure_rerere() {
