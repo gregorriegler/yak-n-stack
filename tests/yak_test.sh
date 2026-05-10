@@ -85,3 +85,18 @@ function test_yak_done_restores_uncommitted_changes() {
 
     assert_same "dirty" "$(cat dirty.txt)"
 }
+
+# ── nested yaks: each --done restores its own WIP ───────────
+
+function test_nested_yaks_unwind_each_levels_wip() {
+    echo "outer" > outer.txt
+    git yak first
+    echo "inner" > inner.txt
+    git yak second
+
+    git yak --done
+    git yak --done
+
+    assert_same "outer" "$(cat outer.txt)"
+    assert_same "inner" "$(cat inner.txt)"
+}
