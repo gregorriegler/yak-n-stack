@@ -86,6 +86,18 @@ function test_yak_done_restores_uncommitted_changes() {
     assert_same "dirty" "$(cat dirty.txt)"
 }
 
+# ── yak from main with commits keeps yak commits off main ───
+
+function test_yak_on_main_with_commits_keeps_yak_off_main() {
+    commit work
+
+    git yak typo-fix
+    commit typo
+    git yak --done
+
+    assert_same "work" "$(git log -1 main --format=%s)"
+}
+
 # ── nested yaks: each --done restores its own WIP ───────────
 
 function test_nested_yaks_unwind_each_levels_wip() {
