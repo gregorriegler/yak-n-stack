@@ -44,15 +44,11 @@ tree() {
     git stack-tree
 }
 
-# ── yak: stay on the current branch ─────────────────────────
-
 function test_yak_keeps_you_on_current_branch() {
     git yak typo-fix
 
     assert_same "main" "$(git branch --show-current)"
 }
-
-# ── yak --done: yak commits land on the original branch ─────
 
 function test_yak_done_keeps_yak_commit_on_original_branch() {
     git yak typo-fix
@@ -65,8 +61,6 @@ function test_yak_done_keeps_yak_commit_on_original_branch() {
     assert_same "typo" "$(git log -1 --format=%s)"
 }
 
-# ── yak hides uncommitted work so yak commits stay clean ────
-
 function test_yak_clears_uncommitted_changes() {
     echo "dirty" > dirty.txt
 
@@ -74,8 +68,6 @@ function test_yak_clears_uncommitted_changes() {
 
     assert_same "" "$(git status --porcelain)"
 }
-
-# ── yak --done brings uncommitted work back ─────────────────
 
 function test_yak_done_restores_uncommitted_changes() {
     echo "dirty" > dirty.txt
@@ -85,8 +77,6 @@ function test_yak_done_restores_uncommitted_changes() {
 
     assert_same "dirty" "$(cat dirty.txt)"
 }
-
-# ── yak from a feature branch keeps you (and the commit) there ──
 
 function test_yak_from_feature_branch_keeps_yak_commit_there() {
     make_branch feature-1
@@ -99,8 +89,6 @@ function test_yak_from_feature_branch_keeps_yak_commit_there() {
     assert_same "typo" "$(git log -1 --format=%s)"
 }
 
-# ── yak from main with commits keeps yak commits off main ───
-
 function test_yak_on_main_with_commits_keeps_yak_off_main() {
     commit work
 
@@ -111,8 +99,6 @@ function test_yak_on_main_with_commits_keeps_yak_off_main() {
     assert_same "work" "$(git log -1 main --format=%s)"
     assert_same "work-1" "$(git branch --show-current)"
 }
-
-# ── nested yaks: each --done restores its own WIP ───────────
 
 function test_nested_yaks_unwind_each_levels_wip() {
     echo "outer" > outer.txt
