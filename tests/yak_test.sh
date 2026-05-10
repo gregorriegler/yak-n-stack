@@ -57,9 +57,10 @@ function test_yak_keeps_you_on_current_branch() {
 function test_yak_done_keeps_yak_commit_on_original_branch() {
     git yak typo-fix
     commit typo
-    git yak --done
-    assert_equals 0 $?
 
+    git yak --done
+
+    assert_equals 0 $?
     assert_same "main" "$(git branch --show-current)"
     assert_same "typo" "$(git log -1 --format=%s)"
 }
