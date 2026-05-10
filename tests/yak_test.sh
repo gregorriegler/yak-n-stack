@@ -86,6 +86,19 @@ function test_yak_done_restores_uncommitted_changes() {
     assert_same "dirty" "$(cat dirty.txt)"
 }
 
+# ── yak from a feature branch keeps you (and the commit) there ──
+
+function test_yak_from_feature_branch_keeps_yak_commit_there() {
+    make_branch feature-1
+
+    git yak typo-fix
+    commit typo
+    git yak --done
+
+    assert_same "feature-1" "$(git branch --show-current)"
+    assert_same "typo" "$(git log -1 --format=%s)"
+}
+
 # ── yak from main with commits keeps yak commits off main ───
 
 function test_yak_on_main_with_commits_keeps_yak_off_main() {
