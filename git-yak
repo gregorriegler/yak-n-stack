@@ -233,6 +233,15 @@ if [ "$1" = "--abort" ]; then
 fi
 
 if [ "$1" = "--done" ]; then
+    PILE_HEADS=$(git config yak.pile-head-stack 2>/dev/null || echo "")
+    if [ -n "$PILE_HEADS" ]; then
+        REST="${PILE_HEADS#* }"
+        if [ "$REST" = "$PILE_HEADS" ]; then
+            git config --unset yak.pile-head-stack
+        else
+            git config yak.pile-head-stack "$REST"
+        fi
+    fi
     pop_yak_state
     if [ -z "$RETURN_TO" ]; then
         echo "No return point saved. Are you in a yak?"

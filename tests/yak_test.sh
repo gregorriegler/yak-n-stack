@@ -100,6 +100,16 @@ function test_yak_on_main_with_commits_keeps_yak_off_main() {
     assert_same "work-1" "$(git branch --show-current)"
 }
 
+function test_yak_abort_after_done_does_not_discard_later_work() {
+    git yak typo-fix
+    git yak --done
+    commit later
+
+    git yak --abort
+
+    assert_same "later" "$(git log -1 --format=%s)"
+}
+
 function test_yak_abort_discards_yak_commit() {
     git yak typo-fix
     commit typo
