@@ -116,6 +116,15 @@ function test_yak_abort_discards_yak_commit() {
     assert_same "main" "$(git branch --show-current)"
 }
 
+function test_yak_abort_restores_uncommitted_changes() {
+    echo "dirty" > dirty.txt
+    git yak typo-fix
+
+    git yak --abort
+
+    assert_same "dirty" "$(cat dirty.txt)"
+}
+
 function test_nested_yaks_unwind_each_levels_wip() {
     echo "outer" > outer.txt
     git yak first

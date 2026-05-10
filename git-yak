@@ -167,7 +167,7 @@ if [ "$1" = "--abort" ]; then
         pop_yak_state
         git reset --hard "$SAVED_HEAD" >/dev/null
         if [ "$HAS_STASH" = "true" ]; then
-            git stash drop >/dev/null 2>&1 || true
+            git stash pop
         fi
         echo "Yak aborted."
         exit 0
