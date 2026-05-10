@@ -64,3 +64,24 @@ function test_yak_done_keeps_yak_commit_on_original_branch() {
     assert_same "main" "$(git branch --show-current)"
     assert_same "typo" "$(git log -1 --format=%s)"
 }
+
+# ── yak hides uncommitted work so yak commits stay clean ────
+
+function test_yak_clears_uncommitted_changes() {
+    echo "dirty" > dirty.txt
+
+    git yak typo-fix
+
+    assert_same "" "$(git status --porcelain)"
+}
+
+# ── yak --done brings uncommitted work back ─────────────────
+
+function test_yak_done_restores_uncommitted_changes() {
+    echo "dirty" > dirty.txt
+
+    git yak typo-fix
+    git yak --done
+
+    assert_same "dirty" "$(cat dirty.txt)"
+}

@@ -237,7 +237,12 @@ fi
 
 if [ "$MODE" = "pile" ]; then
     CURRENT=$(git branch --show-current)
-    push_yak_state "$CURRENT" "false"
+    STASHED=false
+    if [ -n "$(git status --porcelain)" ]; then
+        git stash push -u >/dev/null
+        STASHED=true
+    fi
+    push_yak_state "$CURRENT" "$STASHED"
     exit 0
 fi
 
