@@ -261,7 +261,7 @@ $'main
 
 function test_sync_no_arg_cascade_with_yak_branch() {
     make_branch feature-1
-    git yak the-yak
+    git yak --branch the-yak
     commit yak-work
 
     push_to_main new.txt "new"
@@ -299,7 +299,7 @@ function test_sync_yak_then_sync_restores_stack_to_main() {
     make_branch feature-1
     git push origin feature-1 >/dev/null 2>&1
 
-    git yak the-yak
+    git yak --branch the-yak
     commit yak-work
     git push origin the-yak >/dev/null 2>&1
     git yak --done

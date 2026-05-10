@@ -44,22 +44,9 @@ tree() {
     git stack-tree
 }
 
-# ── git yak from main with commits ──────────────────────────
+# ── git yak --branch from main with commits ──────────────────────────
 
 function test_yak_from_main_moves_work_and_lands_on_yak() {
-    commit work
-
-    git yak the-yak
-
-    assert_same "$(tree)" \
-$'main
- └─ the-yak ←
-     └─ work-1 [1]'
-}
-
-# ── --branch alias matches default behavior ─────────────────
-
-function test_yak_branch_flag_aliases_default_behavior() {
     commit work
 
     git yak --branch the-yak
@@ -73,7 +60,7 @@ $'main
 function test_yak_done_returns_to_work_branch() {
     commit work
 
-    git yak the-yak
+    git yak --branch the-yak
     git yak --done
 
     assert_same "$(tree)" \
@@ -82,10 +69,10 @@ $'main
      └─ work-1 [1] ←'
 }
 
-# ── git yak from main with no commits ───────────────────────
+# ── git yak --branch from main with no commits ───────────────────────
 
 function test_yak_from_main_no_commits_lands_on_yak() {
-    git yak quick-fix
+    git yak --branch quick-fix
 
     assert_same "$(tree)" \
 $'main
@@ -93,7 +80,7 @@ $'main
 }
 
 function test_yak_done_from_main_returns_to_main() {
-    git yak quick-fix
+    git yak --branch quick-fix
     git yak --done
 
     assert_same "$(tree)" \
@@ -101,12 +88,12 @@ $'main ←
  └─ quick-fix'
 }
 
-# ── git yak from a feature branch ───────────────────────────
+# ── git yak --branch from a feature branch ───────────────────────────
 
 function test_yak_from_feature_inserts_beneath() {
     make_branch feature-1
 
-    git yak the-yak
+    git yak --branch the-yak
 
     assert_same "$(tree)" \
 $'main
@@ -117,7 +104,7 @@ $'main
 function test_yak_done_from_feature_returns_to_feature() {
     make_branch feature-1
 
-    git yak the-yak
+    git yak --branch the-yak
     git yak --done
 
     assert_same "$(tree)" \
@@ -133,7 +120,7 @@ function test_yak_from_top_of_stack_inserts_directly_beneath_current() {
     git stack part-2
     commit part-2
 
-    git yak the-yak
+    git yak --branch the-yak
 
     assert_same "$(tree)" \
 $'main
@@ -147,7 +134,7 @@ function test_yak_done_from_stack_returns_to_original_branch() {
     git stack part-2
     commit part-2
 
-    git yak the-yak
+    git yak --branch the-yak
     git yak --done
 
     assert_same "$(tree)" \
@@ -163,7 +150,7 @@ function test_yak_preserves_uncommitted_changes() {
     make_branch feature-1
     echo "dirty" > dirty.txt
 
-    git yak the-yak
+    git yak --branch the-yak
     git yak --done
 
     assert_same "$(tree)" \
@@ -178,10 +165,10 @@ $'main
 function test_nested_yak_inserts_beneath_current_yak() {
     make_branch feature-1
 
-    git yak the-yak
+    git yak --branch the-yak
     commit yak-work
 
-    git yak deeper-yak
+    git yak --branch deeper-yak
 
     assert_same "$(tree)" \
 $'main
@@ -193,10 +180,10 @@ $'main
 function test_nested_yak_done_returns_to_original_branch() {
     make_branch feature-1
 
-    git yak the-yak
+    git yak --branch the-yak
     commit yak-work
 
-    git yak deeper-yak
+    git yak --branch deeper-yak
     commit deeper-work
     git yak --done
 
@@ -213,11 +200,11 @@ $'main
 function test_second_yak_from_feature_inserts_above_prior_yak() {
     make_branch feature-1
 
-    git yak first-yak
+    git yak --branch first-yak
     commit first-yak-work
     git yak --done
 
-    git yak second-yak
+    git yak --branch second-yak
 
     assert_same "$(tree)" \
 $'main
@@ -231,10 +218,10 @@ $'main
 function test_nested_yak_two_dones_return_all_the_way_back() {
     make_branch feature-1
 
-    git yak the-yak
+    git yak --branch the-yak
     commit yak-work
 
-    git yak deeper-yak
+    git yak --branch deeper-yak
     commit deeper-work
     git yak --done
     git yak --done
@@ -250,10 +237,10 @@ function test_nested_yak_preserves_outer_uncommitted_changes() {
     make_branch feature-1
     echo "feature-dirt" > feature-dirt.txt
 
-    git yak the-yak
+    git yak --branch the-yak
     echo "yak-dirt" > yak-dirt.txt
 
-    git yak deeper-yak
+    git yak --branch deeper-yak
     git yak --done
     git yak --done
 

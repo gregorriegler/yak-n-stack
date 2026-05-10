@@ -85,7 +85,7 @@ function test_yak_conflict_then_continue() {
 
     conflict_on_main shared.txt "main"
 
-    git yak the-yak || true
+    git yak --branch the-yak || true
 
     resolve shared.txt "resolved"
     git rebase --continue >/dev/null 2>&1
@@ -105,7 +105,7 @@ function test_yak_conflict_then_abort() {
 
     conflict_on_main shared.txt "main"
 
-    git yak the-yak || true
+    git yak --branch the-yak || true
     git yak --abort
 
     assert_same "feature-1" "$(git branch --show-current)"
