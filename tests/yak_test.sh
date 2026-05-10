@@ -85,15 +85,15 @@ function test_yak_from_feature_branch_keeps_yak_commit_there() {
     assert_same "typo" "$(git log -1 --format=%s)"
 }
 
-function test_yak_on_main_with_commits_keeps_yak_off_main() {
+function test_yak_on_main_with_commits_lands_yak_on_main() {
     commit work
 
     git yak typo-fix
     commit typo
     git yak --done
 
-    assert_same "work" "$(git log -1 main --format=%s)"
-    assert_same "work-1" "$(git branch --show-current)"
+    assert_same "typo" "$(git log -1 main --format=%s)"
+    assert_same "main" "$(git branch --show-current)"
 }
 
 function test_yak_abort_after_done_does_not_discard_later_work() {
