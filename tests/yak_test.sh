@@ -213,3 +213,38 @@ $'main
          └─ feature-1 [1]'
 }
 
+# ── nested yak: second --done must return to the original branch ─────
+
+function test_nested_yak_two_dones_return_all_the_way_back() {
+    make_branch feature-1
+
+    git yak the-yak
+    commit yak-work
+
+    git yak deeper-yak
+    commit deeper-work
+    git yak --done
+    git yak --done
+
+    assert_same "$(tree)" \
+$'main
+ └─ deeper-yak [1]
+     └─ the-yak [1]
+         └─ feature-1 [1] ←'
+}
+
+function test_nested_yak_preserves_outer_uncommitted_changes() {
+    make_branch feature-1
+    echo "feature-dirt" > feature-dirt.txt
+
+    git yak the-yak
+    echo "yak-dirt" > yak-dirt.txt
+
+    git yak deeper-yak
+    git yak --done
+    git yak --done
+
+    assert_same "feature-dirt" "$(cat feature-dirt.txt)"
+    assert_same "yak-dirt" "$(cat yak-dirt.txt)"
+}
+
