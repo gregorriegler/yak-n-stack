@@ -35,9 +35,9 @@ git yak typo-fix
 git yak --done
 ```
 
-`git yak <name>` stashes your in-progress work and leaves you on
-`feature`. You make the fix and commit it directly. `git yak --done`
-pops the stash back. Yak commits land on `feature` and ship with it.
+`git yak <name>` stashes your in-progress work and leaves you on the
+current branch. You make the fix and commit it directly. `git yak --done`
+pops the stash back. Yak commits land on the current branch and ship with it.
 
 Nest as deep as you want — each `--done` unwinds one level. Use
 `git yak --abort` instead to throw the yak away (commits discarded,
