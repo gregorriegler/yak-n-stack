@@ -96,6 +96,7 @@ function test_yak_on_main_with_commits_keeps_yak_off_main() {
     git yak --done
 
     assert_same "work" "$(git log -1 main --format=%s)"
+    assert_same "work-1" "$(git branch --show-current)"
 }
 
 # ── nested yaks: each --done restores its own WIP ───────────
