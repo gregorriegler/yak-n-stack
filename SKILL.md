@@ -16,7 +16,7 @@ Interpret `$ARGUMENTS` to decide which command to run.
 ## Commands
 
 ```bash
-git yak <name>           # pause for a quick yak on the current branch (any branch, incl. main)
+git yak <name>           # pause for a quick yak on the current branch
 git yak --branch <name>  # insert a yak branch beneath current work
 git yak --done           # finish the yak
 git yak --continue       # resume after resolving a rebase conflict (--branch only)
