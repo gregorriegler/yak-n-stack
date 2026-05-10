@@ -236,6 +236,8 @@ if [ -z "$1" ]; then
 fi
 
 if [ "$MODE" = "pile" ]; then
+    CURRENT=$(git branch --show-current)
+    push_yak_state "$CURRENT" "false"
     exit 0
 fi
 
