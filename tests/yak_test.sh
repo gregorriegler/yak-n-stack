@@ -57,6 +57,19 @@ $'main
      └─ work-1 [1]'
 }
 
+# ── --branch alias matches default behavior ─────────────────
+
+function test_yak_branch_flag_aliases_default_behavior() {
+    commit work
+
+    git yak --branch the-yak
+
+    assert_same "$(tree)" \
+$'main
+ └─ the-yak ←
+     └─ work-1 [1]'
+}
+
 function test_yak_done_returns_to_work_branch() {
     commit work
 
