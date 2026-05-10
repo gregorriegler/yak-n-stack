@@ -115,7 +115,7 @@ $'main
 
 # ── stacked branches with yak beneath ───────────────────────
 
-function test_yak_beneath_stack_rebases_entire_stack() {
+function test_yak_from_top_of_stack_inserts_directly_beneath_current() {
     make_branch part-1
     git stack part-2
     commit part-2
@@ -124,8 +124,8 @@ function test_yak_beneath_stack_rebases_entire_stack() {
 
     assert_same "$(tree)" \
 $'main
- └─ the-yak ←
-     └─ part-1 [1]
+ └─ part-1 [1]
+     └─ the-yak ←
          └─ part-2 [1]'
 }
 
@@ -139,8 +139,8 @@ function test_yak_done_from_stack_returns_to_original_branch() {
 
     assert_same "$(tree)" \
 $'main
- └─ the-yak
-     └─ part-1 [1]
+ └─ part-1 [1]
+     └─ the-yak
          └─ part-2 [1] ←'
 }
 
@@ -192,6 +192,24 @@ function test_nested_yak_done_returns_to_original_branch() {
 $'main
  └─ deeper-yak [1]
      └─ the-yak [1] ←
+         └─ feature-1 [1]'
+}
+
+# ── multiple yaks: yak after a yak --done ───────────────────
+
+function test_second_yak_from_feature_inserts_above_prior_yak() {
+    make_branch feature-1
+
+    git yak first-yak
+    commit first-yak-work
+    git yak --done
+
+    git yak second-yak
+
+    assert_same "$(tree)" \
+$'main
+ └─ first-yak [1]
+     └─ second-yak ←
          └─ feature-1 [1]'
 }
 

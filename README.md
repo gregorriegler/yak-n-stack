@@ -47,8 +47,9 @@ main
      └─ feature     ← moved on top, waiting
 ```
 
-The script stashes uncommitted changes, creates `refactor` beneath
-`feature`, rebases the stack, and drops you on `refactor`. When done:
+The script stashes uncommitted changes, creates `refactor` directly
+beneath `feature`, rebases `feature` onto it, and drops you on
+`refactor`. When done:
 
 ```bash
 git yak --done

@@ -45,7 +45,7 @@ cascade_from() {
 
         if [ "$i" -eq 0 ]; then
             NEW_BASE="$YAK_NAME"
-            OLD_BASE="origin/$MAIN_BRANCH"
+            OLD_BASE=$(git config yak.bottom-original-parent 2>/dev/null || echo "origin/$MAIN_BRANCH")
         else
             NEW_BASE="${STACK[$((i-1))]}"
             OLD_BASE="${OLD_TIPS[$((i-1))]}"
@@ -223,19 +223,7 @@ if [ "$CURRENT" = "$MAIN_BRANCH" ]; then
         STACK=("$WORK_BRANCH")
     fi
 else
-    TOP_DOWN=()
-    B="$CURRENT"
-    while true; do
-        TOP_DOWN+=("$B")
-        PARENT=$(git config "branch.$B.stack-parent" 2>/dev/null || echo "")
-        if [ -z "$PARENT" ] || [ "$PARENT" = "origin/$MAIN_BRANCH" ] || [ "$PARENT" = "$MAIN_BRANCH" ]; then
-            break
-        fi
-        B="$PARENT"
-    done
-    for (( i=${#TOP_DOWN[@]}-1; i>=0; i-- )); do
-        STACK+=("${TOP_DOWN[$i]}")
-    done
+    STACK=("$CURRENT")
 fi
 
 OLD_TIPS=()
@@ -245,11 +233,16 @@ for B in "${STACK[@]}"; do
     REMOTE_TIPS+=("$(git rev-parse "origin/$B" 2>/dev/null || echo "")")
 done
 
-git checkout -b "$YAK_NAME" "origin/$MAIN_BRANCH"
-git config "branch.$YAK_NAME.stack-parent" "origin/$MAIN_BRANCH"
-
+ORIGINAL_BOTTOM_PARENT=""
 if [ "${#STACK[@]}" -gt 0 ]; then
     ORIGINAL_BOTTOM_PARENT=$(git config "branch.${STACK[0]}.stack-parent" 2>/dev/null || echo "origin/$MAIN_BRANCH")
+fi
+YAK_BASE="${ORIGINAL_BOTTOM_PARENT:-origin/$MAIN_BRANCH}"
+
+git checkout -b "$YAK_NAME" "$YAK_BASE"
+git config "branch.$YAK_NAME.stack-parent" "$YAK_BASE"
+
+if [ "${#STACK[@]}" -gt 0 ]; then
     git config "branch.${STACK[0]}.stack-parent" "$YAK_NAME"
 fi
 
