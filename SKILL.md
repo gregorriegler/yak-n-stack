@@ -1,8 +1,9 @@
 ---
 name: yak
 description: >
-  Stacked PR workflow. Use when the user wants to create stacked branches,
-  insert a yak branch beneath current work, sync a stack, or create a PR.
+  Stacked PR workflow. Use when the user wants to pause for a quick yak,
+  insert a yak branch beneath current work, create stacked branches, sync
+  a stack, or create a PR.
   TRIGGER when: user says "yak", "stack", "sync", "stack-pr", or talks about stacking PRs/branches.
 argument-hint: <yak|stack|sync|stack-pr|tree|done|continue|abort|install> [branch-name|title]
 allowed-tools: Bash(git *) Bash(gh *) Bash(${CLAUDE_SKILL_DIR}/install.sh *) Bash(chmod *)
@@ -15,10 +16,11 @@ Interpret `$ARGUMENTS` to decide which command to run.
 ## Commands
 
 ```bash
-git yak <name>           # insert a branch beneath current work
-git yak --done           # finish the yak, return to your work branch
-git yak --continue       # resume after resolving a rebase conflict
-git yak --abort          # cancel and restore everything
+git yak <name>           # pause for a quick yak on the current branch
+git yak --branch <name>  # insert a yak branch beneath current work
+git yak --done           # finish the yak
+git yak --continue       # resume after resolving a rebase conflict (--branch only)
+git yak --abort          # cancel the yak and discard its commits
 
 git stack <name>         # create a new branch on top of the current one
 

@@ -6,11 +6,12 @@
 Git commands for yak-shaving and stacking PRs.
 
 ```
-git yak <name>        insert a branch beneath your current work
-git stack <name>      stack a new branch on top of the current one
-git stack-pr <title>  push and create a PR for the bottom branch
-git sync              rebase the stack, cleaning up merged branches
-git stack-tree        print the branch stack
+git yak <name>          pause to do something small without leaving your branch
+git yak --branch <name> insert a branch beneath your current work
+git stack <name>        stack a new branch on top of the current one
+git stack-pr <title>    push and create a PR for the bottom branch
+git sync                rebase the stack, cleaning up merged branches
+git stack-tree          print the branch stack
 ```
 
 ## Install
@@ -23,9 +24,32 @@ git stack-tree        print the branch stack
 
 ---
 
-## Yak: something needs to happen first
+## Yak: pause for something small
 
-You are working on `feature` and realize you need a refactor to land first.
+You're mid-flow on `feature` and notice a typo. You don't want to start
+a new branch for a one-line fix.
+
+```bash
+git yak typo-fix
+# fix the typo, commit it
+git yak --done
+```
+
+`git yak <name>` stashes your in-progress work and leaves you on
+`feature`. You make the fix and commit it directly. `git yak --done`
+pops the stash back. Yak commits land on `feature` and ship in
+`feature`'s PR.
+
+Nest as deep as you want — each `--done` unwinds one level. Use
+`git yak --abort` instead to throw the yak away (commits discarded,
+stash dropped).
+
+---
+
+## Yak --branch: when the yak deserves its own PR
+
+If the yak grows beyond a quick fix and you want it reviewed and
+merged on its own:
 
 Before:
 ```
@@ -33,11 +57,8 @@ main
  └─ feature         ← you are here, mid-work
 ```
 
-Motivation: the refactor is a prerequisite. You want it reviewed and
-merged on its own, with `feature` waiting on top.
-
 ```bash
-git yak refactor
+git yak --branch refactor
 ```
 
 After:
