@@ -155,6 +155,24 @@ if [ "$1" = "--continue" ]; then
 fi
 
 if [ "$1" = "--abort" ]; then
+    PILE_HEADS=$(git config yak.pile-head-stack 2>/dev/null || echo "")
+    if [ -n "$PILE_HEADS" ]; then
+        SAVED_HEAD="${PILE_HEADS%% *}"
+        REST="${PILE_HEADS#* }"
+        if [ "$REST" = "$PILE_HEADS" ]; then
+            git config --unset yak.pile-head-stack
+        else
+            git config yak.pile-head-stack "$REST"
+        fi
+        pop_yak_state
+        git reset --hard "$SAVED_HEAD" >/dev/null
+        if [ "$HAS_STASH" = "true" ]; then
+            git stash drop >/dev/null 2>&1 || true
+        fi
+        echo "Yak aborted."
+        exit 0
+    fi
+
     if [ "$(git config yak.in-progress 2>/dev/null)" != "true" ]; then
         echo "No yak in progress."
         exit 1
@@ -251,12 +269,22 @@ if [ "$MODE" = "pile" ]; then
         fi
     fi
 
+    SAVED_HEAD=$(git rev-parse HEAD)
+
     STASHED=false
     if [ -n "$(git status --porcelain)" ]; then
         git stash push -u >/dev/null
         STASHED=true
     fi
     push_yak_state "$CURRENT" "$STASHED"
+
+    CUR_HEADS=$(git config yak.pile-head-stack 2>/dev/null || echo "")
+    if [ -n "$CUR_HEADS" ]; then
+        git config yak.pile-head-stack "$SAVED_HEAD $CUR_HEADS"
+    else
+        git config yak.pile-head-stack "$SAVED_HEAD"
+    fi
+
     exit 0
 fi
 
