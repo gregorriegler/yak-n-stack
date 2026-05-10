@@ -40,10 +40,6 @@ make_branch() {
     commit "$1"
 }
 
-tree() {
-    git stack-tree
-}
-
 function test_yak_keeps_you_on_current_branch() {
     git yak typo-fix
 
@@ -71,8 +67,8 @@ function test_yak_clears_uncommitted_changes() {
 
 function test_yak_done_restores_uncommitted_changes() {
     echo "dirty" > dirty.txt
-
     git yak typo-fix
+
     git yak --done
 
     assert_same "dirty" "$(cat dirty.txt)"
