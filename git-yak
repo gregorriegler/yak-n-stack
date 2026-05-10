@@ -8,7 +8,9 @@ if [ $# -gt 0 ] && { [ "$1" = "$0" ] || [ "$1" = "${0##*/}" ]; }; then
     shift
 fi
 
+MODE=pile
 if [ "$1" = "--branch" ]; then
+    MODE=branch
     shift
 fi
 
@@ -231,6 +233,10 @@ fi
 if [ -z "$1" ]; then
     usage
     exit 1
+fi
+
+if [ "$MODE" = "pile" ]; then
+    exit 0
 fi
 
 if [ "$(git config yak.in-progress 2>/dev/null)" = "true" ]; then
